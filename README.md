@@ -98,7 +98,7 @@ pnpm dev
 
 ทีมเรายินดีต้อนรับการ Contribute จากทุกคน! กรุณาอ่านเอกสาร [CONTRIBUTING.md](./CONTRIBUTING.md) สำหรับรายละเอียดเกี่ยวกับ:
 - ข้อตกลงการพัฒนา (Code of Conduct)
-- กลยุทธ์การแตก Branch (Branching Strategy)
+- **กลยุทธ์การแตก Branch แบบ Git Flow** (`main`, `develop`, `feature/*`, `release/*`, `hotfix/*`)
 - รูปแบบ Conventional Commits
 - ขั้นตอนการเปิด Pull Requests (PR) พร้อม Checklist
 

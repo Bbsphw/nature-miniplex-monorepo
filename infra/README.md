@@ -65,3 +65,11 @@ graph TD
 - **Frontend (Web)**: จะถูกแพ็กเก็บในรูปแบบของ Next.js standalone container
 
 *หมายเหตุ: รายละเอียดของ Cloud Provider (เช่น Azure Bicep หรือ AWS Terraform) จะถูกเพิ่มเข้ามาอัปเดตในโฟลเดอร์นี้ตามลำดับแผนการพัฒนาระยะถัดไป*
+
+---
+
+## 🌊 การจัดการสาขา (Git Flow)
+
+โปรเจกต์นี้ใช้มาตรฐาน **Git Flow** ในการทำงาน สำหรับส่วนของ Infrastructure:
+- การเปลี่ยนแปลง Configuration หรือ Scripts ต่างๆ ต้องทำผ่านกิ่ง `feature/*` ที่แตกออกจาก `develop`
+- ทำตามข้อกำหนดการเปิด Pull Request ตามที่ระบุไว้ใน [CONTRIBUTING.md](../CONTRIBUTING.md)

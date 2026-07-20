@@ -7,11 +7,18 @@
 
 ---
 
-## 🌊 กระบวนการพัฒนา (Development Workflow)
+## 🌊 กระบวนการพัฒนา (Git Flow Workflow)
 
-เราใช้ Feature-branch workflow (คล้ายกับ GitHub Flow) ในการพัฒนา
+เราใช้มาตรฐาน **Git Flow** ในการพัฒนาอย่างเคร่งครัด เพื่อให้การออก Release เป็นไปอย่างราบรื่นและควบคุมคุณภาพได้ดีที่สุด
 
-### 1. การตั้งชื่อ Branch (Branch Naming)
+### 1. โครงสร้างกิ่ง (Branching Strategy)
+- `main`: กิ่งหลักที่เก็บโค้ดสำหรับ Production (ห้าม Push โดยตรง) โค้ดในกิ่งนี้ต้องพร้อม Deploy เสมอ
+- `develop`: กิ่งหลักสำหรับการพัฒนาฟีเจอร์ใหม่ (ห้าม Push โดยตรง) โค้ดจากกิ่งนี้จะถูกนำไปทดสอบก่อนขึ้น `main`
+- `feature/*`: สำหรับพัฒนาฟีเจอร์ใหม่ (แตกกิ่งมาจาก `develop`)
+- `release/*`: สำหรับเตรียมความพร้อมก่อนขึ้น Production (แตกกิ่งมาจาก `develop`)
+- `hotfix/*`: สำหรับแก้บั๊กฉุกเฉินบน Production (แตกกิ่งมาจาก `main`)
+
+### 2. การตั้งชื่อ Branch (Branch Naming)
 รูปแบบที่กำหนด: `<type>/<issue-number>-<short-description>`
 - สำหรับฟีเจอร์ใหม่: `feature/123-add-booking-endpoint`
 - สำหรับแก้บั๊ก: `bugfix/124-fix-seat-race-condition`

@@ -78,3 +78,12 @@ pnpm build
 pnpm start
 ```
 หาก Deploy ขึ้นบน Platform เช่น Vercel หรือ Docker ระบบจะรันคำสั่งเหล่านี้โดยอัตโนมัติตาม CI/CD Pipeline
+
+---
+
+## 🌊 การจัดการสาขา (Git Flow)
+
+โปรเจกต์นี้ใช้มาตรฐาน **Git Flow** ในการทำงาน สำหรับส่วนของ Frontend:
+- ห้ามแก้ไขโค้ดลงกิ่ง `main` หรือ `develop` โดยตรง
+- สร้างกิ่ง `feature/*` จาก `develop` ทุกครั้งเมื่อทำ UI หรือฟีเจอร์ใหม่
+- ทำตามข้อกำหนดการเปิด Pull Request ตามที่ระบุไว้ใน [CONTRIBUTING.md](../CONTRIBUTING.md)

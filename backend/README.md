@@ -77,3 +77,12 @@ backend/src/
 dotnet test
 ```
 *(แนะนำให้เขียน Unit Tests ครอบคลุม Application Layer เป็นหลัก)*
+
+---
+
+## 🌊 การจัดการสาขา (Git Flow)
+
+โปรเจกต์นี้ใช้มาตรฐาน **Git Flow** ในการทำงาน สำหรับส่วนของ Backend:
+- ห้ามแก้ไขโค้ดลงกิ่ง `main` หรือ `develop` โดยตรง
+- สร้างกิ่ง `feature/*` จาก `develop` ทุกครั้งเมื่อทำฟีเจอร์ใหม่
+- ทำตามข้อกำหนดการเปิด Pull Request ตามที่ระบุไว้ใน [CONTRIBUTING.md](../CONTRIBUTING.md)

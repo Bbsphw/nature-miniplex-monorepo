@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------
+  # DATABASE SERVICE: MS SQL Server 2022
+  # ----------------------------------------------------
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: miniplex_sqlserver
+    hostname: miniplex_db
+    environment:
+      - ACCEPT_EULA=Y                           # ยอมรับเงื่อนไขการใช้งาน
+      - MSSQL_PID=Developer                     # รันในโหมด Developer (ฟรีสำหรับพัฒนา)
+      - MSSQL_SA_PASSWORD=${SA_PASSWORD}        # รหัสผ่านของ SA (ดึงจาก .env)
+      - TZ=Asia/Bangkok                         # ตั้งค่า Timezone เป็นเวลาไทย
+    ports:
+      - "${SQL_PORT}:1433"                      # แมพพอร์ตออกมายังเครื่องโฮสต์ตาม .env
+    volumes:
+      - sqlserver_data:/var/opt/mssql           # เก็บข้อมูล Database ให้ไม่หายเมื่อปิด Container
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${SA_PASSWORD}", "-Q", "SELECT 1", "-C"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s                         # รอให้ SQL รันเสร็จก่อนเช็คสถานะ
+    restart: unless-stopped
+
+# ----------------------------------------------------
+# VOLUMES: การจัดการที่เก็บข้อมูลถาวร
+# ----------------------------------------------------
+volumes:
+  sqlserver_data:
+    name: miniplex_sql_data

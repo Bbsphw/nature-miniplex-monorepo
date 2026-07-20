@@ -15,6 +15,6 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.PhoneNumber).IsRequired().HasMaxLength(15).IsUnicode(false);
         builder.Property(c => c.CreatedAt).HasDefaultValueSql("GETDATE()");
 
-        builder.HasIndex(c => c.PhoneNumber).IsUnique();
+        builder.HasIndex(c => c.PhoneNumber).HasDatabaseName("IX_Customer_PhoneNumber").IsUnique();
     }
 }

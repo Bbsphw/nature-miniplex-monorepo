@@ -17,9 +17,9 @@ public class ShowtimesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetShowtimes([FromQuery] int? movieId, [FromQuery] int? cinemaId, [FromQuery] DateTime? date)
+    public async Task<IActionResult> GetShowtimes([FromQuery] int? movieId, [FromQuery] int? cinemaId, [FromQuery] DateTime? date, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
     {
-        var result = await _mediator.Send(new NatureMiniPlex.Core.Application.Features.Showtimes.Queries.GetShowtimes.GetShowtimesQuery(movieId, cinemaId, date));
+        var result = await _mediator.Send(new NatureMiniPlex.Core.Application.Features.Showtimes.Queries.GetShowtimes.GetShowtimesQuery(movieId, cinemaId, date, pageNumber, pageSize));
         return Ok(result);
     }
 

@@ -15,6 +15,16 @@ public class MovieRepository : Repository<Movie>, IMovieRepository
     {
     }
 
+    public override async Task<Movie?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet.IgnoreQueryFilters().FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+    }
+
+    public override async Task<IReadOnlyList<Movie>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _dbSet.IgnoreQueryFilters().ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Movie>> GetActiveMoviesAsync(CancellationToken cancellationToken = default)
     {
         return await _dbSet
@@ -24,6 +34,6 @@ public class MovieRepository : Repository<Movie>, IMovieRepository
 
     public async Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await _dbSet.AnyAsync(m => m.Id == id, cancellationToken);
+        return await _dbSet.IgnoreQueryFilters().AnyAsync(m => m.Id == id, cancellationToken);
     }
 }

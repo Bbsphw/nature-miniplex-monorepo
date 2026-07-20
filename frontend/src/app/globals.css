@@ -1,26 +1,159 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-prompt), var(--font-inter), sans-serif;
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-prompt), sans-serif;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-brand-red: #E31837;
+  --color-brand-red-dark: #B01228;
+  --color-brand-red-light: #FF4D6B;
+  --color-surface-base: #0A0A0F;
+  --color-surface-DEFAULT: #13131A;
+  --color-surface-elevated: #1C1C27;
+  --color-surface-border: #2A2A3E;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --primary: #E31837;
+  --primary-foreground: #FFFFFF;
+  --background: #0A0A0F;
+  --foreground: #FFFFFF;
+  --card: #13131A;
+  --card-foreground: #FFFFFF;
+  --popover: #1C1C27;
+  --popover-foreground: #FFFFFF;
+  --secondary: #1C1C27;
+  --secondary-foreground: #A0A0B8;
+  --muted: #1C1C27;
+  --muted-foreground: #5C5C7A;
+  --accent: #2A2A3E;
+  --accent-foreground: #FFFFFF;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: #2A2A3E;
+  --input: #2A2A3E;
+  --ring: #E31837;
+  --radius: 0.625rem;
+  --chart-1: #E31837;
+  --chart-2: #FF4D6B;
+  --chart-3: #B01228;
+  --chart-4: #4A4A5A;
+  --chart-5: #22C55E;
+}
+
+.dark {
+  --primary: #E31837;
+  --primary-foreground: #FFFFFF;
+  --background: #0A0A0F;
+  --foreground: #FFFFFF;
+  --card: #13131A;
+  --card-foreground: #FFFFFF;
+  --popover: #1C1C27;
+  --popover-foreground: #FFFFFF;
+  --secondary: #1C1C27;
+  --secondary-foreground: #A0A0B8;
+  --muted: #1C1C27;
+  --muted-foreground: #5C5C7A;
+  --accent: #2A2A3E;
+  --accent-foreground: #FFFFFF;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: #2A2A3E;
+  --input: #2A2A3E;
+  --ring: #E31837;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-prompt), var(--font-inter), sans-serif;
+  }
+  html {
+    scroll-behavior: smooth;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #E31837 0%, #FF4D6B 50%, #B01228 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass {
+    background: rgba(28, 28, 39, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(42, 42, 62, 0.8);
+  }
+
+  .glow-red {
+    box-shadow: 0 0 20px rgba(227, 24, 55, 0.4), 0 0 60px rgba(227, 24, 55, 0.1);
+  }
+
+  .seat-available {
+    background: #1C1C27;
+    border: 1px solid #2A2A3E;
+    color: #A0A0B8;
+    transition: all 0.2s;
+  }
+
+  .seat-available:hover {
+    border-color: #E31837;
+    box-shadow: 0 0 12px rgba(227, 24, 55, 0.3);
+    transform: scale(1.05);
+    color: #FFFFFF;
+  }
+
+  .seat-selected {
+    background: #E31837;
+    border: 1px solid #FF4D6B;
+    color: #FFFFFF;
+    box-shadow: 0 0 16px rgba(227, 24, 55, 0.5);
+    transform: scale(1.05);
+  }
+
+  .seat-booked {
+    background: #2A2A3E;
+    border: 1px solid #3A3A50;
+    color: #5C5C7A;
+    cursor: not-allowed;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-4px); }
+    40%, 80% { transform: translateX(4px); }
+  }
+  .animate-shake {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+  }
 }
+

@@ -20,8 +20,28 @@ public static class DbInitializer
             await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(context.Database, 
                 "UPDATE Users SET PasswordHash = {0} WHERE Username = 'admin'", 
                 newHashedAdminPassword);
+
+            // Fix any cinemas that were seeded as IsActive = false (0)
+            await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(context.Database, "UPDATE Cinemas SET IsActive = 1 WHERE IsActive = 0");
+
+            // Re-assign Seats and Showtimes from duplicate cinemas to the main cinema ID for each name
+            await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(context.Database, @"
+                UPDATE s SET s.CinemaId = c_min.MinId
+                FROM Seats s
+                JOIN Cinemas c ON s.CinemaId = c.Id
+                JOIN (SELECT Name, MIN(Id) AS MinId FROM Cinemas GROUP BY Name) c_min ON c.Name = c_min.Name;
+
+                UPDATE st SET st.CinemaId = c_min.MinId
+                FROM Showtimes st
+                JOIN Cinemas c ON st.CinemaId = c.Id
+                JOIN (SELECT Name, MIN(Id) AS MinId FROM Cinemas GROUP BY Name) c_min ON c.Name = c_min.Name;
+
+                DELETE FROM Seats WHERE Id NOT IN (SELECT MIN(Id) FROM Seats GROUP BY CinemaId, RowName, ColumnName);
+
+                DELETE FROM Cinemas WHERE Id NOT IN (SELECT MIN(Id) FROM Cinemas GROUP BY Name);
+            ");
         }
-        catch (System.Exception ex) 
+        catch (System.Exception) 
         {
             // Ignore if table doesn't exist yet
         }
@@ -48,7 +68,7 @@ public static class DbInitializer
         // Add Sriracha Cinema (6 seats, A-C x 1-2)
         if (!context.Set<Cinema>().Any(c => c.Name == "Sriracha"))
         {
-            var sriracha = new Cinema { Name = "Sriracha" };
+            var sriracha = new Cinema { Name = "Sriracha", IsActive = true, TotalSeats = 6 };
             context.Set<Cinema>().Add(sriracha);
             await context.SaveChangesAsync();
 
@@ -68,7 +88,7 @@ public static class DbInitializer
         // Add Bangsaen Cinema (12 seats, A-D x 1-3)
         if (!context.Set<Cinema>().Any(c => c.Name == "Bangsaen"))
         {
-            var bangsaen = new Cinema { Name = "Bangsaen" };
+            var bangsaen = new Cinema { Name = "Bangsaen", IsActive = true, TotalSeats = 12 };
             context.Set<Cinema>().Add(bangsaen);
             await context.SaveChangesAsync();
 

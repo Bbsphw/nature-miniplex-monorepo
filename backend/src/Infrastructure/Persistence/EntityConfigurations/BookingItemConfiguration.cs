@@ -42,5 +42,8 @@ public class BookingItemConfiguration : IEntityTypeConfiguration<BookingItem>
             .HasDatabaseName("IX_BookingItem_Showtime_Seat_Active");
             
         builder.HasQueryFilter(b => b.Showtime.IsActive);
+        
+        builder.HasIndex(b => b.BookingId).HasDatabaseName("IX_BookingItem_BookingId");
+        builder.HasIndex(b => b.ShowtimeId).HasDatabaseName("IX_BookingItem_ShowtimeId");
     }
 }

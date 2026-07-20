@@ -82,7 +82,8 @@ namespace NatureMiniPlex.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CustomerId");
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("IX_Booking_CustomerId");
 
                     b.ToTable("Bookings");
                 });
@@ -119,9 +120,13 @@ namespace NatureMiniPlex.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BookingId");
+                    b.HasIndex("BookingId")
+                        .HasDatabaseName("IX_BookingItem_BookingId");
 
                     b.HasIndex("SeatId");
+
+                    b.HasIndex("ShowtimeId")
+                        .HasDatabaseName("IX_BookingItem_ShowtimeId");
 
                     b.HasIndex("ShowtimeId", "SeatId")
                         .IsUnique()
@@ -181,7 +186,8 @@ namespace NatureMiniPlex.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("PhoneNumber")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Customer_PhoneNumber");
 
                     b.ToTable("Customers");
                 });
@@ -299,9 +305,14 @@ namespace NatureMiniPlex.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CinemaId");
+                    b.HasIndex("CinemaId")
+                        .HasDatabaseName("IX_Showtime_CinemaId");
 
-                    b.HasIndex("MovieId");
+                    b.HasIndex("MovieId")
+                        .HasDatabaseName("IX_Showtime_MovieId");
+
+                    b.HasIndex("ShowDateTime")
+                        .HasDatabaseName("IX_Showtime_ShowDateTime");
 
                     b.ToTable("Showtimes");
                 });

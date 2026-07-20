@@ -25,6 +25,9 @@ public static class DependencyInjection
         services.Configure<Authentication.JwtSettings>(configuration.GetSection(Authentication.JwtSettings.SectionName));
         services.AddSingleton<NatureMiniPlex.Core.Application.Interfaces.IJwtTokenGenerator, Authentication.JwtTokenGenerator>();
         services.AddSingleton<NatureMiniPlex.Core.Application.Interfaces.IPasswordHasher, Authentication.PasswordHasher>();
+        
+        services.Configure<NatureMiniPlex.Infrastructure.Services.SmtpSettings>(configuration.GetSection("SmtpSettings"));
+        services.AddTransient<IEmailService, NatureMiniPlex.Infrastructure.Services.EmailService>();
 
         return services;
     }

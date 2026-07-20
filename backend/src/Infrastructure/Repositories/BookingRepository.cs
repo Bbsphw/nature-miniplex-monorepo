@@ -30,4 +30,28 @@ public class BookingRepository : Repository<Booking>, IBookingRepository
             .Include(b => b.BookingItems)
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
     }
+
+    public async Task<IReadOnlyList<NatureMiniPlex.Core.Application.DTOs.BookingDto>> GetPagedBookingsAsync(string? phoneNumber, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = _dbSet.AsNoTracking();
+
+        if (!string.IsNullOrEmpty(phoneNumber))
+        {
+            query = query.Where(b => b.Customer.PhoneNumber == phoneNumber);
+        }
+
+        return await query
+            .OrderByDescending(b => b.BookingTime)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(b => new NatureMiniPlex.Core.Application.DTOs.BookingDto
+            {
+                Id = b.Id,
+                CustomerId = b.CustomerId,
+                BookingTime = b.BookingTime,
+                Status = b.Status.ToString(),
+                CustomerPhoneNumber = b.Customer.PhoneNumber
+            })
+            .ToListAsync(cancellationToken);
+    }
 }

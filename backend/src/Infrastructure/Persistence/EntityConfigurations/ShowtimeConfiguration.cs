@@ -27,5 +27,9 @@ public class ShowtimeConfiguration : IEntityTypeConfiguration<Showtime>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasQueryFilter(s => s.IsActive);
+        
+        builder.HasIndex(s => s.ShowDateTime).HasDatabaseName("IX_Showtime_ShowDateTime");
+        builder.HasIndex(s => s.MovieId).HasDatabaseName("IX_Showtime_MovieId");
+        builder.HasIndex(s => s.CinemaId).HasDatabaseName("IX_Showtime_CinemaId");
     }
 }

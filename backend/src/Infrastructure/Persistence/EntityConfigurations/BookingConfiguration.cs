@@ -24,5 +24,7 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .WithMany(c => c.Bookings)
             .HasForeignKey(b => b.CustomerId)
             .OnDelete(DeleteBehavior.Restrict);
+            
+        builder.HasIndex(b => b.CustomerId).HasDatabaseName("IX_Booking_CustomerId");
     }
 }

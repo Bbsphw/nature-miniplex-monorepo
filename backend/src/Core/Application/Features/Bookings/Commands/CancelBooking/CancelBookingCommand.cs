@@ -40,9 +40,15 @@ public class CancelBookingCommandHandler : IRequestHandler<CancelBookingCommand,
         
         if (booking == null) throw new Exception("Booking not found.");
 
-        if (booking.Customer?.PhoneNumber != request.PhoneNumber)
+        var customerPhone = booking.Customer?.PhoneNumber?.Trim() ?? string.Empty;
+        var requestPhone = request.PhoneNumber?.Trim() ?? string.Empty;
+
+        var cleanCustomerPhone = new string(customerPhone.Where(char.IsDigit).ToArray());
+        var cleanRequestPhone = new string(requestPhone.Where(char.IsDigit).ToArray());
+
+        if (string.IsNullOrEmpty(cleanCustomerPhone) || !string.Equals(cleanCustomerPhone, cleanRequestPhone, StringComparison.OrdinalIgnoreCase))
         {
-            throw new Exception("Phone number does not match the booking owner.");
+            throw new Exception($"เบอร์โทรศัพท์ไม่ตรงกับผู้จอง (ในระบบ: {customerPhone}, ที่ระบุ: {requestPhone})");
         }
 
         var bookingItem = booking.BookingItems?.FirstOrDefault();

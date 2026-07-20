@@ -18,9 +18,9 @@ public class BookingsController : ControllerBase
 
     [HttpGet]
     [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Owner")]
-    public async Task<IActionResult> GetBookings([FromQuery] string? phoneNumber)
+    public async Task<IActionResult> GetBookings([FromQuery] string? phoneNumber, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
     {
-        var result = await _mediator.Send(new NatureMiniPlex.Core.Application.Features.Bookings.Queries.GetBookings.GetBookingsQuery(phoneNumber));
+        var result = await _mediator.Send(new NatureMiniPlex.Core.Application.Features.Bookings.Queries.GetBookings.GetBookingsQuery(phoneNumber, pageNumber, pageSize));
         return Ok(result);
     }
 
@@ -50,6 +50,13 @@ public class BookingsController : ControllerBase
     public async Task<IActionResult> CancelBookingItem(Guid id, Guid itemId, [FromQuery] string phoneNumber)
     {
         var result = await _mediator.Send(new NatureMiniPlex.Core.Application.Features.Bookings.Commands.CancelBookingItem.CancelBookingItemCommand(id, itemId, phoneNumber));
+        return Ok(result);
+    }
+
+    [HttpPost("cancel-seat")]
+    public async Task<IActionResult> CancelBookingBySeat([FromBody] NatureMiniPlex.Core.Application.Features.Bookings.Commands.CancelBookingBySeat.CancelBookingBySeatCommand command)
+    {
+        var result = await _mediator.Send(command);
         return Ok(result);
     }
 }

@@ -37,4 +37,36 @@ public class ShowtimeRepository : Repository<Showtime>, IShowtimeRepository
                 .ThenInclude(bi => bi.Booking)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }
+
+    public async Task<IReadOnlyList<NatureMiniPlex.Core.Application.DTOs.ShowtimeDto>> GetPagedShowtimesAsync(int? movieId, int? cinemaId, DateTime? date, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = _dbSet.AsNoTracking().Where(s => s.IsActive);
+
+        if (movieId.HasValue)
+            query = query.Where(s => s.MovieId == movieId.Value);
+            
+        if (cinemaId.HasValue)
+            query = query.Where(s => s.CinemaId == cinemaId.Value);
+            
+        if (date.HasValue)
+            query = query.Where(s => s.ShowDateTime.Date == date.Value.Date);
+
+        return await query
+            .OrderBy(s => s.ShowDateTime)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(s => new NatureMiniPlex.Core.Application.DTOs.ShowtimeDto
+            {
+                Id = s.Id,
+                MovieId = s.MovieId,
+                MovieTitle = s.Movie.Title,
+                CinemaId = s.CinemaId,
+                CinemaName = s.Cinema.Name,
+                ShowDateTime = s.ShowDateTime,
+                TicketPrice = s.TicketPrice,
+                IsLocked = s.IsLocked,
+                IsActive = s.IsActive
+            })
+            .ToListAsync(cancellationToken);
+    }
 }

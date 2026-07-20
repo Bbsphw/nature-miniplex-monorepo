@@ -8,9 +8,9 @@ using NatureMiniPlex.Core.Domain.Entities;
 
 namespace NatureMiniPlex.Core.Application.Features.Bookings.Queries.GetBookings;
 
-public record GetBookingsQuery(string? PhoneNumber) : IRequest<IReadOnlyList<Booking>>;
+public record GetBookingsQuery(string? PhoneNumber, int PageNumber = 1, int PageSize = 20) : IRequest<IReadOnlyList<NatureMiniPlex.Core.Application.DTOs.BookingDto>>;
 
-public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, IReadOnlyList<Booking>>
+public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, IReadOnlyList<NatureMiniPlex.Core.Application.DTOs.BookingDto>>
 {
     private readonly IBookingRepository _bookingRepository;
 
@@ -19,15 +19,8 @@ public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, IReadOn
         _bookingRepository = bookingRepository;
     }
 
-    public async Task<IReadOnlyList<Booking>> Handle(GetBookingsQuery request, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<NatureMiniPlex.Core.Application.DTOs.BookingDto>> Handle(GetBookingsQuery request, CancellationToken cancellationToken)
     {
-        var bookings = await _bookingRepository.GetAllAsync(cancellationToken);
-        
-        if (!string.IsNullOrEmpty(request.PhoneNumber))
-        {
-            bookings = bookings.Where(b => b.Customer != null && b.Customer.PhoneNumber == request.PhoneNumber).ToList();
-        }
-
-        return bookings.ToList();
+        return await _bookingRepository.GetPagedBookingsAsync(request.PhoneNumber, request.PageNumber, request.PageSize, cancellationToken);
     }
 }

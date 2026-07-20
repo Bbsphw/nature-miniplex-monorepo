@@ -1,204 +1,118 @@
-"use client";
+import { Suspense } from 'react';
 
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { MovieCard } from '@/components/movies/MovieCard';
+import { MovieCardSkeleton } from '@/components/movies/MovieCardSkeleton';
+import type { Movie } from '@/types/api';
+import { Film, Sparkles } from 'lucide-react';
 
-// Types
-type Cinema = { id: number; name: string };
-type Movie = { id: number; title: string; isActive: boolean };
-type Showtime = { id: number; showDateTime: string; ticketPrice: number };
-type SeatStatus = { seatId: number; seatName: string; rowName: string; columnName: string; isBooked: boolean; bookedByPhoneNumber: string | null };
+async function getMovies(): Promise<Movie[]> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
+    const res = await fetch(`${apiUrl}/api/movies?onlyActive=true`, {
+      next: { revalidate: 60 } // Cache for 60 seconds
+    });
+    
+    if (!res.ok) throw new Error('Failed to fetch movies');
+    
+    return res.json();
+  } catch (error) {
+    console.error("Error fetching movies:", error);
+    return [];
+  }
+}
 
-const API_BASE = "https://localhost:7157/api"; // Default ASP.NET Core dev port
+function MovieGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+      {[1, 2, 3, 4].map((i) => (
+        <MovieCardSkeleton key={i} />
+      ))}
+    </div>
+  );
+}
 
-export default function Home() {
-  const [cinemas, setCinemas] = useState<Cinema[]>([]);
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [selectedCinemaId, setSelectedCinemaId] = useState<number>(0);
-  const [selectedMovieId, setSelectedMovieId] = useState<number>(0);
-  
-  // Hardcoded showtime ID for MVP since we haven't built the Showtime UI to fetch them yet
-  // We'll mock selecting a showtime after selecting a movie for simplicity, 
-  // but ideally we fetch showtimes based on Cinema & Movie.
-  const [showtimeId, setShowtimeId] = useState<number>(0); 
-  const [seats, setSeats] = useState<SeatStatus[]>([]);
-  
-  const [phone, setPhone] = useState("");
-  const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
-  
-  useEffect(() => {
-    // Fetch Cinemas
-    axios.get(`${API_BASE}/Cinemas`).then(res => {
-      setCinemas(res.data);
-      if (res.data.length > 0) setSelectedCinemaId(res.data[0].id);
-    }).catch(console.error);
+async function MovieGrid() {
+  const movies = await getMovies();
 
-    // Fetch Movies
-    axios.get(`${API_BASE}/Movies`).then(res => {
-      setMovies(res.data);
-      if (res.data.length > 0) setSelectedMovieId(res.data[0].id);
-    }).catch(console.error);
-  }, []);
-
-  // Fetch Seats when a showtime is selected
-  useEffect(() => {
-    if (showtimeId > 0) {
-      fetchSeats();
-    }
-  }, [showtimeId]);
-
-  const fetchSeats = () => {
-    axios.get(`${API_BASE}/Cinemas/showtimes/${showtimeId}/seats`).then(res => {
-      setSeats(res.data);
-    }).catch(console.error);
-  };
-
-  const handleSeatClick = (seat: SeatStatus) => {
-    if (seat.isBooked) {
-      // Prompt to cancel
-      const enteredPhone = prompt(`Seat ${seat.seatName} is booked. Enter phone number to cancel:`);
-      if (enteredPhone) {
-        // We need BookingId to cancel, but we don't return it in SeatStatusDto.
-        // For MVP, we might need backend to support cancelling by Phone + SeatId.
-        alert("Cancellation requires BookingId in the current backend design. Please implement in backend.");
-      }
-      return;
-    }
-
-    // Toggle selection
-    if (selectedSeats.includes(seat.seatId)) {
-      setSelectedSeats(selectedSeats.filter(id => id !== seat.seatId));
-    } else {
-      if (selectedSeats.length >= 4) {
-        alert("Maximum 4 seats can be selected");
-        return;
-      }
-      setSelectedSeats([...selectedSeats, seat.seatId]);
-    }
-  };
-
-  const bookTickets = async () => {
-    if (!phone || selectedSeats.length === 0) {
-      alert("Please enter phone number and select seats.");
-      return;
-    }
-
-    try {
-      await axios.post(`${API_BASE}/Bookings`, {
-        showtimeId,
-        phoneNumber: phone,
-        seatIds: selectedSeats
-      });
-      alert("Booking successful!");
-      setSelectedSeats([]);
-      fetchSeats();
-    } catch (err: any) {
-      alert(err.response?.data?.error || "Error booking tickets");
-    }
-  };
+  if (!movies.length) {
+    return (
+      <div className="text-center py-32 space-y-6 bg-gray-900/30 rounded-3xl border border-white/5 backdrop-blur-sm">
+        <Film className="w-16 h-16 text-brand-red/50 mx-auto" />
+        <p className="text-gray-400 text-lg">ยังไม่มีภาพยนตร์ที่เปิดให้จองในขณะนี้</p>
+      </div>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-[#0f172a] text-white p-8 font-sans selection:bg-indigo-500/30">
-      <div className="max-w-5xl mx-auto space-y-12">
-        <header className="text-center space-y-4">
-          <h1 className="text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
-            Nature MiniPlex
-          </h1>
-          <p className="text-slate-400 text-lg">Premium Cinema Ticket Booking Prototype</p>
-        </header>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+      {movies.map((movie) => (
+        <MovieCard key={movie.id} movie={movie} />
+      ))}
+    </div>
+  );
+}
 
-        <section className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 border border-slate-700/50 shadow-2xl flex flex-wrap gap-6 items-end justify-between">
-          <div className="space-y-2 flex-1 min-w-[200px]">
-            <label className="text-sm font-medium text-slate-300">== เลือกโรงหนัง ==</label>
-            <select 
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 outline-none focus:border-indigo-500 transition-colors"
-              value={selectedCinemaId} onChange={e => setSelectedCinemaId(Number(e.target.value))}
-            >
-              <option value="0">Select Cinema</option>
-              {cinemas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+export default function HomePage() {
+  return (
+    <>
+      <section className="relative overflow-hidden min-h-[60vh] flex items-center">
+        {/* Background Gradients */}
+        <div className="absolute inset-0 bg-[#0a0a0f]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(227, 24, 55,0.15),transparent)]" />
+        <div
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
+            backgroundSize: '64px 64px',
+          }}
+        />
+        
+        <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-red/10 border border-brand-red/20 text-brand-red text-sm font-bold tracking-wide mb-8 shadow-[0_0_15px_rgba(227, 24, 55,0.1)]">
+            <Sparkles className="w-4 h-4" />
+            ยินดีต้อนรับสู่ประสบการณ์ระดับพรีเมียม
           </div>
           
-          <div className="space-y-2 flex-1 min-w-[200px]">
-            <label className="text-sm font-medium text-slate-300">== เลือกเรื่องหนัง ==</label>
-            <select 
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 outline-none focus:border-indigo-500 transition-colors"
-              value={selectedMovieId} onChange={e => setSelectedMovieId(Number(e.target.value))}
-            >
-              <option value="0">Select Movie</option>
-              {movies.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
-            </select>
-          </div>
-
-          <div className="space-y-2 flex-1 min-w-[200px]">
-             <label className="text-sm font-medium text-slate-300">Showtime ID (Mock for MVP)</label>
-             <input 
-               type="number" 
-               placeholder="e.g. 1" 
-               className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 outline-none focus:border-indigo-500"
-               value={showtimeId || ''} 
-               onChange={e => setShowtimeId(Number(e.target.value))} 
-             />
-          </div>
-        </section>
-
-        {showtimeId > 0 && (
-          <section className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-8 border border-slate-700/50 shadow-2xl">
-            <h2 className="text-2xl font-semibold mb-6">ที่นั่งสำหรับจองและยกเลิกการจอง</h2>
-            <div className="flex gap-4 mb-8 text-sm text-slate-400">
-              <div className="flex items-center gap-2"><div className="w-4 h-4 bg-white rounded"></div> ว่าง</div>
-              <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-500 rounded"></div> จองแล้ว</div>
-              <div className="flex items-center gap-2"><div className="w-4 h-4 bg-indigo-500 rounded ring-2 ring-indigo-400 ring-offset-2 ring-offset-slate-800"></div> กำลังเลือก</div>
+          <h1 className="text-5xl sm:text-6xl lg:text-8xl font-bold font-prompt text-white mb-8 tracking-tight drop-shadow-2xl">
+            Nature{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-red to-brand-red-dark drop-shadow-[0_0_30px_rgba(227, 24, 55,0.3)]">
+              MiniPlex
+            </span>
+          </h1>
+          
+          <p className="text-xl sm:text-2xl text-gray-400 max-w-2xl mx-auto mb-12 font-light">
+            ที่สุดของโรงภาพยนตร์ส่วนตัว ศรีราชา &amp; บางแสน
+          </p>
+          
+          <div className="flex flex-wrap items-center justify-center gap-5 text-sm text-gray-300 font-medium">
+            <div className="flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-gray-900/80 border border-white/10 backdrop-blur-md shadow-xl">
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-red shadow-[0_0_10px_rgba(227, 24, 55,0.8)]" />
+              ศรีราชา · 6 ที่นั่ง
             </div>
-
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
-              {seats.map(seat => (
-                <button
-                  key={seat.seatId}
-                  onClick={() => handleSeatClick(seat)}
-                  className={`
-                    relative p-4 rounded-xl flex flex-col items-center justify-center min-h-[80px] transition-all duration-300
-                    ${seat.isBooked 
-                      ? 'bg-slate-600 cursor-not-allowed text-slate-300' 
-                      : selectedSeats.includes(seat.seatId)
-                        ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)] scale-105'
-                        : 'bg-white text-slate-900 hover:bg-slate-200 cursor-pointer hover:scale-105'
-                    }
-                  `}
-                >
-                  <span className="text-xl font-bold">{seat.seatName}</span>
-                  {seat.isBooked && seat.bookedByPhoneNumber && (
-                    <span className="text-[10px] opacity-80 mt-1">{seat.bookedByPhoneNumber}</span>
-                  )}
-                </button>
-              ))}
+            <div className="flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-gray-900/80 border border-white/10 backdrop-blur-md shadow-xl">
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-red shadow-[0_0_10px_rgba(227, 24, 55,0.8)]" />
+              บางแสน · 12 ที่นั่ง
             </div>
+          </div>
+        </div>
+        
+        {/* Bottom fade out */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0a0a0f] to-transparent pointer-events-none" />
+      </section>
 
-            {selectedSeats.length > 0 && (
-              <div className="mt-12 bg-slate-900/50 rounded-xl p-6 border border-indigo-500/30 flex flex-wrap gap-4 items-center">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">เบอร์โทรศัพท์สำหรับจอง (9-10 หลัก)</label>
-                  <input 
-                    type="tel" 
-                    value={phone} 
-                    onChange={e => setPhone(e.target.value)}
-                    placeholder="0899999999"
-                    className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 outline-none focus:border-indigo-500 transition-colors"
-                  />
-                </div>
-                <div className="flex-none self-end">
-                  <button 
-                    onClick={bookTickets}
-                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95"
-                  >
-                    ยืนยันการจอง {selectedSeats.length} ที่นั่ง
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-      </div>
-    </main>
+      <section className="relative bg-[#0a0a0f]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+          <div className="flex items-center gap-4 mb-12">
+            <div className="w-1.5 h-10 rounded-full bg-brand-red shadow-[0_0_15px_rgba(227, 24, 55,0.6)]" />
+            <h2 className="text-3xl sm:text-4xl font-bold text-white font-prompt tracking-wide">ภาพยนตร์ที่กำลังฉาย</h2>
+          </div>
+          
+          <Suspense fallback={<MovieGridSkeleton />}>
+            <MovieGrid />
+          </Suspense>
+        </div>
+      </section>
+    </>
   );
 }

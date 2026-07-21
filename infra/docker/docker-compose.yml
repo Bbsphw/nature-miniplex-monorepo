@@ -1,0 +1,87 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: miniplex-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:-NaturePlex@2026!}
+      MSSQL_PID: "Developer"
+    ports:
+      - "${SQL_PORT:-1433}:1433"
+    volumes:
+      - miniplex_sql_data:/var/opt/mssql/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '${SA_PASSWORD:-NaturePlex@2026!}' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - miniplex-net
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: miniplex-mailpit
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025" # SMTP Port
+      - "${MAILPIT_WEB_PORT:-8025}:8025"   # Web UI Port
+    restart: unless-stopped
+    networks:
+      - miniplex-net
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: miniplex-backend
+    ports:
+      - "${API_PORT:-5000}:5000"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=${DB_NAME:-NatureMiniPlexDb};User Id=sa;Password=${SA_PASSWORD:-NaturePlex@2026!};TrustServerCertificate=True;MultipleActiveResultSets=True;"
+      JwtSettings__Secret: ${JwtSettings__Secret:-Development_Secret_Key_For_NatureMiniPlex_Minimum_32_Chars_Long_2026!}
+      JwtSettings__Issuer: ${JwtSettings__Issuer:-NatureMiniPlex}
+      JwtSettings__Audience: ${JwtSettings__Audience:-NatureMiniPlexUsers}
+      JwtSettings__ExpiryMinutes: ${JwtSettings__ExpiryMinutes:-120}
+      JWT__SecretKey: ${JWT__SecretKey:-Development_Secret_Key_For_NatureMiniPlex_Minimum_32_Chars_Long_2026!}
+      JWT__Issuer: ${JWT__Issuer:-NatureMiniPlexApi}
+      JWT__Audience: ${JWT__Audience:-NatureMiniPlexClient}
+      JWT__ExpireMinutes: ${JWT__ExpireMinutes:-120}
+      SmtpSettings__Host: ${SmtpSettings__Host:-mailpit}
+      SmtpSettings__Port: ${SmtpSettings__Port:-1025}
+      SmtpSettings__SenderEmail: ${SmtpSettings__SenderEmail:-noreply@natureminiplex.com}
+      SmtpSettings__SenderName: ${SmtpSettings__SenderName:-Nature MiniPlex Ticketing}
+      CORS__ALLOWEDORIGINS: ${CORS__ALLOWEDORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - miniplex-net
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    container_name: miniplex-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Nature MiniPlex}
+      NEXT_PUBLIC_AUTH_COOKIE_NAME: ${NEXT_PUBLIC_AUTH_COOKIE_NAME:-admin_token}
+      NEXT_PUBLIC_MAX_SEATS_PER_BOOKING: ${NEXT_PUBLIC_MAX_SEATS_PER_BOOKING:-4}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - miniplex-net
+
+volumes:
+  miniplex_sql_data:
+    driver: local
+
+networks:
+  miniplex-net:
+    driver: bridge

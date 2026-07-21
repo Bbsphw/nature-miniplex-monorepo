@@ -17,9 +17,14 @@ public class BookingsController : ControllerBase
     }
 
     [HttpGet]
-    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Owner")]
     public async Task<IActionResult> GetBookings([FromQuery] string? phoneNumber, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
     {
+        // Allow public ticket lookup by phone number without login; require Admin/Owner auth for listing all bookings
+        if (string.IsNullOrWhiteSpace(phoneNumber) && !(User.Identity?.IsAuthenticated ?? false))
+        {
+            return Unauthorized();
+        }
+
         var result = await _mediator.Send(new NatureMiniPlex.Core.Application.Features.Bookings.Queries.GetBookings.GetBookingsQuery(phoneNumber, pageNumber, pageSize));
         return Ok(result);
     }

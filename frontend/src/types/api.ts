@@ -8,16 +8,20 @@ export interface Movie {
   rowVersion: string;
   showtimes?: Showtime[];
 }
+
 export interface Cinema {
   id: number;
   name: string;
   totalSeats: number;
   isActive: boolean;
 }
+
 export interface Showtime {
   id: number;
   cinemaId: number;
   movieId: number;
+  movieTitle?: string;
+  cinemaName?: string;
   showDateTime: string;
   ticketPrice: number;
   isLocked: boolean;
@@ -26,6 +30,7 @@ export interface Showtime {
   cinema?: Cinema;
   movie?: Movie;
 }
+
 export interface SeatStatus {
   seatId: number;
   rowName: string;
@@ -34,14 +39,17 @@ export interface SeatStatus {
   bookerPhone: string | null;
   rowVersion: string;
 }
+
 export interface Booking {
   id: string;
   customerId: string;
   bookingTime: string;
   status: BookingStatus;
+  customerPhoneNumber?: string;
   customer?: Customer;
   bookingItems?: BookingItem[];
 }
+
 export interface BookingItem {
   id: string;
   bookingId: string;
@@ -49,27 +57,32 @@ export interface BookingItem {
   seatId: number;
   price: number;
   itemStatus: ItemStatus;
+  seatName?: string;
   showtime?: Showtime;
   seat?: Seat;
 }
+
 export interface Customer {
   id: string;
   phoneNumber: string;
   email?: string;
   createdAt: string;
 }
+
 export interface Seat {
   id: number;
   cinemaId: number;
   rowName: string;
   columnName: string;
 }
+
 export interface User {
   id: number;
   username: string;
   role: UserRole;
   isActive: boolean;
 }
+
 export type BookingStatus = 'Completed' | 'Canceled';
 export type ItemStatus = 'Active' | 'Canceled';
 export type UserRole = 'Owner' | 'Staff';

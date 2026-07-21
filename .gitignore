@@ -1,8 +1,52 @@
+# Dependencies
 node_modules/
-.env
-.gemini/
+.pnpm-store/
+.npm/
+
+# Build & Output directories
 dist/
 build/
-.DS_Store
+.next/
+out/
+bin/
+obj/
 
-.fake
+# Environment & Secret files (Twelve-Factor App)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+!*.env.example
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.user
+*.userosscache
+*.sln.docstates
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.gemini/
+
+# Terraform / Infrastructure temporary files
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/.terraform.lock.hcl
+
+# Logs & Temporary files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+tmp/
+temp/

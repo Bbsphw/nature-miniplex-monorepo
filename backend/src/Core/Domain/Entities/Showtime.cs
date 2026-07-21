@@ -27,4 +27,22 @@ public class Showtime : BaseEntity
         IsLocked = true;
         AddDomainEvent(new ShowtimeLockedEvent(this));
     }
+
+    public void EnsureCanBookOrCancel()
+    {
+        if (IsLocked)
+        {
+            throw new Exceptions.DomainException("Cannot process booking or cancellation. This showtime has been locked or started.");
+        }
+
+        if (DateTime.UtcNow >= ShowDateTime)
+        {
+            throw new Exceptions.DomainException("Cannot process booking or cancellation. Showtime has already started.");
+        }
+    }
+
+    public void MarkAsStarted()
+    {
+        LockShowtime();
+    }
 }

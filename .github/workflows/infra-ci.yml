@@ -1,0 +1,55 @@
+name: "Infrastructure CI Pipeline"
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra-ci.yml'
+
+jobs:
+  docker-compose-validate:
+    name: "Validate Docker Compose Config"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose Configuration
+        run: |
+          cd infra
+          cp .env.example .env
+          docker compose -f docker/docker-compose.yml config --quiet
+
+  terraform-lint-and-scan:
+    name: "Terraform Lint, Validate & Security Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup HashiCorp Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive infra/terraform
+
+      - name: Terraform Init & Validate (Dev)
+        run: |
+          cd infra/terraform/environments/dev
+          terraform init -backend=false
+          terraform validate
+
+      - name: Run Security Vulnerability Scan (Checkov)
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infra/terraform
+          framework: terraform
+          soft_fail: true

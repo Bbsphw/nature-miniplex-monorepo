@@ -1,24 +1,43 @@
-# UI System & Design
+# Nature MiniPlex — UI System & Design Tokens
 
-The application uses a custom "Premium Dark Cinema" theme.
+เอกสารฉบับนี้อธิบายระบบการออกแบบ (Design System), Design Tokens, การใช้งาน Tailwind CSS v4, และส่วนประกอบ Radix UI Primitives สำหรับแอปพลิเคชัน Nature MiniPlex
 
-## 1. Tailwind CSS v4
-We use the latest Tailwind v4 engine which relies on CSS Variables and `@theme` directives instead of a traditional `tailwind.config.ts`.
-- Configuration is centralized in `src/app/globals.css`.
-- **Design Tokens:**
-  - `brand-red`: `#E31837` (Primary Accent)
-  - `surface-base`: `#0A0A0F` (App Background)
-  - `surface-elevated`: `#1C1C27` (Cards, Modals)
-  - `surface-border`: `#2A2A3E` (Dividers, Borders)
+## 1. Premium Cinema Dark Aesthetics
 
-## 2. Radix UI (shadcn/ui approach)
-We use Radix UI primitives for accessible, unstyled UI components, and style them manually with Tailwind CSS.
-- **Primitives:** Dialog, Select, Label, Slot.
+อินเทอร์เฟซของระบบได้รับการออกแบบในสไตล์ **"Premium Dark Cinema"** มุ่งเน้นการสร้างบรรยากาศแบบโรงภาพยนตร์สุดหรู (Immersive Cinematic Atmosphere) ด้วยโทนสีเข้ม Glassmorphism และไฟ Neon Accents:
+
+- **Surface Base (`#0A0A0F`):** พื้นหลังหลักของแอปพลิเคชัน ให้ความรู้สึกมืดสนิทสมจริง
+- **Surface Elevated (`#1C1C27`):** การ์ดข้อมูล, แผงควบคุม Admin, และ Dialog Modals
+- **Surface Border (`#2A2A3E`):** เส้นขอบและตัวแบ่งเซกชันแบบบาง
+- **Brand Red (`#E31837`):** สีแดงสัญลักษณ์หลักสำหรับปุ่ม Action, สถานะที่เลือก และ Glow Effects
+
+## 2. Tailwind CSS v4 Integration
+
+ระบบใช้ประโยชน์จาก **Tailwind v4 Engine** ซึ่งทำงานผ่าน CSS Variables และ `@theme` directives ใน `src/app/globals.css`:
+
+```css
+@theme {
+  --color-brand-red: #E31837;
+  --color-surface-base: #0A0A0F;
+  --color-surface-elevated: #1C1C27;
+  --color-surface-border: #2A2A3E;
+  --font-prompt: 'Prompt', sans-serif;
+}
+```
+
+## 3. Radix UI Primitives & Accessibility (a11y)
+
+เลือกใช้ **Radix UI Primitives** เพื่อให้มั่นใจว่า UI อ่านง่ายและรองรับ Screen Readers และ Keyboard Navigation ตามมาตรฐาน WAI-ARIA:
+
+- **Primitives ในโปรเจกต์:** Dialog, Select, Label, Slot
 - **Location:** `src/components/ui/`
-- **Why?** Radix provides full WAI-ARIA accessibility (keyboard navigation, screen reader support) while letting us completely control the visual output (Glassmorphism, gradients).
+- **a11y Enhancements:**
+  - `SeatButton`: มี `aria-pressed` และ `aria-label` แจ้งสถานะที่นั่ง (ว่าง, เลือกแล้ว, จองแล้วพร้อมเบอร์โทรศัพท์ Masked)
+  - Dialog Modals: ควบคุม Focus Trapping และ ARIA Labeling อัตโนมัติ
 
-## 3. Custom Utilities (`globals.css`)
-We define custom utilities in `@layer utilities` for complex effects that are tedious to write inline:
-- `.text-gradient-brand`: Text with a red-to-pink gradient.
-- `.glass`: Blur backdrop filters with semi-transparent backgrounds.
-- `.seat-available`, `.seat-selected`, `.seat-booked`: Interactive states for the Seat Grid buttons with hover effects and glowing shadows.
+## 4. Custom Utility Classes
+
+กำหนด Custom Utilities ใน `src/app/globals.css` สำหรับ Visual Effects ซับซ้อน:
+- `.glass`: สร้างพื้นหลังโปร่งแสงพร้อม Blur Filter
+- `.hide-scrollbar`: ซ่อน Scrollbar สำหรับผังที่นั่งในหน้าจอขนาดเล็ก
+- `.animate-shake`: แอนิเมชันสั่นเตือนเมื่อผู้ใช้เลือกที่นั่งที่ไม่ถูกต้องหรือล้มเหลว

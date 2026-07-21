@@ -1,88 +1,101 @@
-# Nature MiniPlex - Backend API
+# 🎬 Nature MiniPlex - Backend Service (.NET 8 Clean Architecture)
 
-[⬅️ กลับสู่หน้าแรก (Back to Root)](../README.md)
-Directory นี้เก็บซอร์สโค้ดของส่วน .NET 8 Web API สำหรับระบบ Nature MiniPlex ซึ่งใช้งาน Entity Framework (EF) Core 8 ในการทำ Data Access และยึดโครงสร้างแบบ **Clean Architecture** อย่างเคร่งครัด
+[⬅️ กลับสู่ Root Monorepo](../README.md) | [🏛️ Architecture Specs](./ARCHITECTURE.md) | [📚 API Documentation](./API_DOCS.md)
+
+ยินดีต้อนรับสู่ส่วน **Backend API** ของระบบ **Nature MiniPlex** (ระบบจองตั๋วภาพยนตร์และบริหารจัดการโรงภาพยนตร์) ซอร์สโค้ดในโฟลเดอร์นี้ได้รับการออกแบบตามหลัก **Clean Architecture** ร่วมกับ **CQRS Pattern (MediatR)** บนเฟรมเวิร์ก **.NET 8** และใช้ **Entity Framework Core 8** สำหรับ Data Access เพื่อรองรับ High Concurrency, Testability และ Data Consistency ตามข้อกำหนด SRS อย่างเคร่งครัด
 
 ---
 
-## 🚀 การเริ่มต้นใช้งาน (Getting Started)
+## 🎯 ภาพรวมสถาปัตยกรรม (System Overview)
 
-### สิ่งที่ต้องมี (Prerequisites)
+Backend ของ Nature MiniPlex มุ่งเน้นการแก้ปัญหาทางธุรกิจที่สำคัญดังนี้:
+1. **Zero Double-Booking Guarantee:** ป้องกันการจองที่นั่งซ้ำซ้อนในเวลาเดียวกัน (Concurrent Bookings) ผ่าน DB-level Filtered Unique Index (`IX_BookingItem_Showtime_Seat_Active`) และ Transaction Lock
+2. **High-Performance Read Operations:** รองรับการดึงข้อมูลตารางรอบฉาย (Showtimes) และรายการภาพยนตร์ (Movies) ผ่าน Caching Strategy
+3. **Enterprise Security:** ระบบยืนยันตัวตนด้วย **JWT Bearer Token** พร้อม **Role-Based Access Control (RBAC)** สำหรับพนักงาน (Staff) และผู้ดูแลระบบ (Owner)
+4. **Standardized API Error Handling:** ส่งคืน Error ด้วยมาตรฐาน **RFC 7807 (Problem Details)** โดยไม่มีการหลุด Stack Trace ออกไปยัง Client ใน Environment Production
+
+---
+
+## 🛠️ เทคโนโลยีหลักที่ใช้ (Tech Stack)
+
+- **Runtime & Framework:** .NET 8 SDK (C# 12)
+- **Architecture Pattern:** Clean Architecture + CQRS (MediatR) + Repository Pattern & Unit of Work
+- **Database & ORM:** SQL Server 2022 / Entity Framework Core 8
+- **Validation:** FluentValidation
+- **Authentication & Security:** JWT (JSON Web Token) + BCrypt Hashing
+- **Documentation:** Swagger / OpenAPI 3.0 & Postman Compatible
+- **Testing:** xUnit, Moq, FluentAssertions
+
+---
+
+## 🚀 การติดตั้งและเริ่มต้นใช้งาน (Getting Started)
+
+### 1. สิ่งที่ต้องเตรียม (Prerequisites)
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- SQL Server (รันผ่าน Docker Compose ในโฟลเดอร์ `/infra` ได้)
+- [Docker & Docker Compose](https://www.docker.com/) (สำหรับรัน SQL Server Instance)
 
-### การตั้งค่า Environment Variables (Secrets)
-> [!WARNING]
-> ระบบต้องการไฟล์ Configuration (.env.local) ในการเริ่มทำงาน โปรดตรวจสอบว่าคุณมีไฟล์นี้
+### 2. การตั้งค่า Environment Variables
+โปรเจกต์รองรับการอ่าน Configuration จากไฟล์ `.env` หรือ `.env.local`
 
-1. เข้าไปที่โฟลเดอร์ `backend/`
-2. คัดลอก `backend/.env.example` ไปเป็น `backend/.env.local`
-3. แก้ไข `CONNECTIONSTRINGS__DEFAULTCONNECTION` และ `JWT__SECRETKEY` ตามสภาพแวดล้อม Local ของคุณ
-4. *(หมายเหตุ: โปรเจกต์ .NET จะถูกตั้งค่าให้อ่านไฟล์ .env และโหลดเข้าสู่ `IConfiguration` อัตโนมัติ หรือผ่าน Docker Env)*
+```bash
+# คัดลอก Template Configuration
+cp .env.example .env.local
+```
 
-### การรันระบบในเครื่อง (Running Locally)
+ตัวอย่างการตั้งค่าใน `.env.local`:
+```env
+CONNECTIONSTRINGS__DEFAULTCONNECTION="Server=localhost,1433;Database=NatureMiniPlexDb;User Id=sa;Password=YourStrongPassw0rd!;TrustServerCertificate=True;"
+JWT__SECRETKEY="YourSuperSecretKeyWithMinimumLengthOf256BitsForSecurity!"
+JWT__ISSUER="NatureMiniPlexAPI"
+JWT__AUDIENCE="NatureMiniPlexClient"
+```
 
-1. **Start Infrastructure**: เปิด Docker Compose ที่ `/infra`
-2. **Apply Migrations**:
-   สร้าง Database และ Table พื้นฐานตาม Schema ล่าสุด:
-   ```bash
-   # CMD / PowerShell
-   dotnet ef database update --project src\NatureMiniPlex.Infrastructure --startup-project src\NatureMiniPlex.Api
+### 3. การทำ Database Migration
+รันคำสั่ง EF Core Migration เพื่อสร้าง Database Schema และ Index ทั้งหมด:
 
-   # Bash (WSL / Linux / macOS)
-   dotnet ef database update --project src/NatureMiniPlex.Infrastructure --startup-project src/NatureMiniPlex.Api
-   ```
-3. **Start Server**:
-   ```bash
-   # CMD / PowerShell
-   cd src\NatureMiniPlex.Api
-   dotnet run
+```bash
+# รันผ่าน CLI (Linux / macOS / PowerShell)
+dotnet ef database update --project src/Infrastructure/NatureMiniPlex.Infrastructure.csproj --startup-project src/API/NatureMiniPlex.API.csproj
+```
 
-   # Bash (WSL / Linux / macOS)
-   cd src/NatureMiniPlex.Api
-   dotnet run
-   ```
-4. **API Documentation (Swagger)**:
-   เปิดบราวเซอร์ไปที่ [http://localhost:5000/swagger](http://localhost:5000/swagger) เพื่อเข้าถึงและทดสอบ API Endpoints ผ่าน Swagger UI
+### 4. การรัน Application
+```bash
+cd src/API
+dotnet run
+```
+
+- **Swagger UI:** [http://localhost:5000/swagger](http://localhost:5000/swagger)
+- **Base HTTP Endpoint:** `http://localhost:5000/api`
 
 ---
 
-## 🏗 โครงสร้างโปรเจกต์ (Clean Architecture)
-
-โปรเจกต์แบ่งออกเป็นเลเยอร์ต่างๆ อย่างชัดเจนเพื่อให้ง่ายต่อการทดสอบและสลับเปลี่ยนเทคโนโลยี:
+## 📁 โครงสร้างโฟลเดอร์ (Directory Structure)
 
 ```text
-backend/src/
-├── Core/
-│   ├── Domain/                        # เลเยอร์ศูนย์กลาง (Entities, Enums)
-│   │   └── NatureMiniPlex.Domain.csproj
-│   └── Application/                   # กฎทางธุรกิจ (Interfaces, DTOs, Features)
-│       └── NatureMiniPlex.Application.csproj
-├── Infrastructure/                    # ติดต่อระบบภายนอก (Database, Auth, 3rd Party)
-│   └── NatureMiniPlex.Infrastructure.csproj
-└── API/                               # ส่วนรับ Request (Presentation Layer)
-    └── NatureMiniPlex.API.csproj
+backend/
+├── src/
+│   ├── Core/
+│   │   ├── Domain/              # Entities, Value Objects, Domain Exceptions, Enums
+│   │   └── Application/         # CQRS Commands/Queries, DTOs, Interfaces, Validators
+│   ├── Infrastructure/          # EF Core DbContext, Repositories, JWT Auth, Migration
+│   └── API/                     # REST Controllers, Middlewares, Program.cs Setup
+├── tests/                       # Unit Tests & Integration Tests
+├── README.md                    # เอกสารภาพรวมโปรเจกต์ (ไฟล์นี้)
+├── ARCHITECTURE.md              # เอกสารการออกแบบสถาปัตยกรรมและ Concurrency Strategy
+└── API_DOCS.md                  # สเปก RESTful API Endpoints ทั้งหมด
 ```
-
-อ่านรายละเอียดสถาปัตยกรรมเพิ่มเติมที่: 
-- 🏛️ [สถาปัตยกรรมระบบ (ARCHITECTURE.md)](./ARCHITECTURE.md)
-- 🗄️ [ฐานข้อมูลและการออกแบบ (DATABASE.md)](./DATABASE.md)
 
 ---
 
-## 🧪 การทดสอบ (Testing)
-ระบบออกแบบมาให้ Testable ได้ 100% สำหรับ Core Logic การรันชุดทดสอบทั้งหมดสามารถทำได้ผ่านคำสั่ง:
+## 🧪 การรันชุดทดสอบ (Running Tests)
+
 ```bash
-# CMD / PowerShell / Bash (WSL)
+# รัน Unit Tests ทั้งหมดใน Solution
 dotnet test
 ```
-*(แนะนำให้เขียน Unit Tests ครอบคลุม Application Layer เป็นหลัก)*
 
 ---
 
-## 🌊 การจัดการสาขา (Git Flow)
-
-โปรเจกต์นี้ใช้มาตรฐาน **Git Flow** ในการทำงาน สำหรับส่วนของ Backend:
-- ห้ามแก้ไขโค้ดลงกิ่ง `main` หรือ `develop` โดยตรง
-- สร้างกิ่ง `feature/*` จาก `develop` ทุกครั้งเมื่อทำฟีเจอร์ใหม่
-- ทำตามข้อกำหนดการเปิด Pull Request ตามที่ระบุไว้ใน [CONTRIBUTING.md](../CONTRIBUTING.md)
+## 🌊 การจัดการ Branch & Git Workflow
+- ใช้มาตรฐาน **Git Flow** (`main`, `develop`, `feature/*`, `bugfix/*`)
+- ทุก Pull Request ต้องผ่านการ Build และ Unit Test pass 100% ก่อน Merge เข้าสู่ `develop`

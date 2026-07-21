@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
-import { toast } from 'sonner';
+import { toast } from '@/store/useToastStore';
 import axios from 'axios';
 import type { UpdateMovieCommand } from '@/types/api';
 
@@ -13,7 +13,6 @@ export function useUpdateMovie() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['movies'] });
-      toast.success('แก้ไขภาพยนตร์สำเร็จ');
     },
     onError: (error) => {
       if (axios.isAxiosError(error)) {

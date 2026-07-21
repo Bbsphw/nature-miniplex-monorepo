@@ -1,0 +1,54 @@
+name: "CI Pipeline"
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  backend-ci:
+    name: "Build & Test Backend (.NET)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore backend/NatureMiniPlex.sln
+
+      - name: Build Solution
+        run: dotnet build backend/NatureMiniPlex.sln --no-restore -c Release
+
+      - name: Run Unit Tests
+        run: dotnet test backend/NatureMiniPlex.sln --no-build -c Release --verbosity normal
+
+  frontend-ci:
+    name: "Build & Lint Frontend (Next.js)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Dependencies
+        run: cd frontend && pnpm install --frozen-lockfile
+
+      - name: Build Next.js
+        run: cd frontend && pnpm run build

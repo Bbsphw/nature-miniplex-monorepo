@@ -1,67 +1,91 @@
-# มาตรฐานการเขียนโค้ด (Coding Standards)
+# 📐 Nature MiniPlex - Coding Standards & Best Practices Specification
 
-[⬅️ กลับหน้า Backend](./README.md) | [🏠 กลับสู่หน้าหลัก](../README.md)
+[⬅️ กลับสู่ Backend README](./README.md) | [🏛️ Architecture Specs](./ARCHITECTURE.md) | [📚 API Documentation](./API_DOCS.md)
 
-เพื่อรักษาคุณภาพและความสม่ำเสมอของโค้ดในโปรเจกต์ Nature MiniPlex ทีมพัฒนาทุกคนจำเป็นต้องปฏิบัติตามมาตรฐานการเขียนโค้ดดังต่อไปนี้อย่างเคร่งครัด
+เพื่อรักษาคุณภาพ ความสม่ำเสมอ และความง่ายในการบำรุงรักษาซอร์สโค้ด (Maintainability) ของระบบ **Nature MiniPlex Backend** ทีมพัฒนาทุกคนต้องปฏิบัติตามมาตรฐานการเขียนโค้ดดังต่อไปนี้อย่างเคร่งครัด
 
 ---
 
-## 1. กฎการตั้งชื่อ (Naming Conventions)
+## 1. 🏷️ กฎการตั้งชื่อ (Naming Conventions)
 
-- **PascalCase**: ใช้สำหรับชื่อ Classes, Interfaces (นำหน้าด้วย `I`), Methods, Properties, Records, และ Enums
+- **PascalCase:** ใช้สำหรับ Classes, Interfaces (นำหน้าด้วย `I`), Methods, Properties, Records, และ Enums
   ```csharp
-  public class MovieService
-  public interface IBookingRepository
-  public decimal CalculateTotalAmount()
+  public class MovieService : IMovieService { ... }
+  public interface IBookingRepository { ... }
+  public decimal CalculateTotalAmount() { ... }
   ```
-- **camelCase**: ใช้สำหรับ Local variables และ Method Parameters
+- **camelCase:** ใช้สำหรับ Local Variables และ Method Parameters
   ```csharp
   var ticketPrice = 250m;
-  public async Task GetMovieById(int movieId)
+  public async Task<MovieDto?> GetMovieByIdAsync(int movieId, CancellationToken cancellationToken)
   ```
-- **_camelCase**: ใช้สำหรับ Private readonly fields ในคลาส
+- **_camelCase:** ใช้สำหรับ Private Readonly Fields ใน Class (Constructor Injection)
   ```csharp
   private readonly IApplicationDbContext _context;
+  private readonly ILogger<CreateBookingCommandHandler> _logger;
   ```
 
 ---
 
-## 2. โครงสร้าง Clean Architecture
+## 2. 🏛️ กฎเลเยอร์ Clean Architecture (Layer Boundary Rules)
 
-ห้ามทำลายกฎของ Clean Architecture อย่างเด็ดขาด:
-- **Domain Layer**: ห้ามอ้างอิง (Reference) โปรเจกต์อื่น ห้ามใช้ `using Microsoft.EntityFrameworkCore` หรือเทคโนโลยีภายนอกอื่นๆ
-- **Application Layer**: อ้างอิงได้แค่ `Domain` เท่านั้น ที่นี่คือที่อยู่ของ Business Logic และ Interfaces (เช่น `IApplicationDbContext`) ห้ามเชื่อมต่อ Database หรือ Third-party API ตรงๆ
-- **Infrastructure Layer**: อ้างอิง `Application` เพื่อนำ Interface มา Implement (เช่น `ApplicationDbContext : IApplicationDbContext`) และจัดการ EF Core, JWT, อีเมล ฯลฯ
-- **API Layer**: อ้างอิง `Application` และ `Infrastructure` ทำหน้าที่เป็นเพียงทางผ่าน (Entry point) และ Controller เท่านั้น ห้ามมี Business Logic ที่นี่
+ต้องยึดถือแนวทาง **Dependency Rule** อย่างเคร่งครัด:
 
----
+```text
+[ API Layer ] -> [ Infrastructure Layer ] -> [ Application Layer ] -> [ Domain Layer ]
+```
 
-## 3. Dependency Injection (DI)
-
-- ห้ามสร้างคลาส (new keyword) สำหรับ Service หรือ Repository ขึ้นมาเอง ต้องรับผ่าน Constructor เสมอ (Constructor Injection)
-- หลีกเลี่ยงการ Inject `IConfiguration` เข้าไปใน Application/Domain ชั้นใน ให้ใช้ Pattern แบบ `IOptions<T>` แทน
-
----
-
-## 4. การจัดการฐานข้อมูล (EF Core)
-
-- **ห้ามใช้ Data Annotations**: ห้ามใช้ `[Required]`, `[MaxLength]`, `[Table]` ใน Entity Class บนชั้น Domain ให้ใช้ **Fluent API** (`IEntityTypeConfiguration`) บนชั้น Infrastructure เท่านั้น
-- **No Tracking สำหรับ Read-Only**: ถ้าทำการดึงข้อมูลเพื่อมาแสดงผลอย่างเดียว (ไม่มีการแก้ไข) ต้องต่อท้ายด้วย `.AsNoTracking()` เสมอ เพื่อประหยัด Memory
-  ```csharp
-  var movies = await _context.Movies.AsNoTracking().ToListAsync(cancellationToken);
-  ```
+1. **Domain Layer (`Core/Domain`):**
+   - **ห้าม** มี Dependency ไปยังโปรเจกต์อื่นเด็ดขาด
+   - **ห้าม** ใช้ `using Microsoft.EntityFrameworkCore` หรือ Third-party Libraries ที่เกี่ยวข้องกับ I/O
+2. **Application Layer (`Core/Application`):**
+   - อ้างอิงได้เฉพาะ `Domain` เท่านั้น
+   - เก็บ Use Cases, CQRS Handlers, DTOs, และ Interfaces (`IBookingRepository`, `IUnitOfWork`)
+   - **ห้าม** มีโค้ดต่อ Database หรือ HTTP Client ตรงๆ
+3. **Infrastructure Layer (`Infrastructure`):**
+   - อ้างอิง `Application` เพื่อนำ Interfaces มา Implement
+   - จัดการ EF Core DbContext, Migrations, JWT Auth, และ External Integrations
+4. **API Layer (`API`):**
+   - อ้างอิง `Application` และ `Infrastructure`
+   - ทำหน้าที่เป็นเพียง Presentation Entrypoint, Routing, และ Middleware Pipeline Setup
 
 ---
 
-## 5. การใช้ Async / Await
+## 3. 💉 Dependency Injection (DI) & SOLID Principles
 
-- Method ที่มีการทำ I/O (Database, Network, File) ต้องเป็น `async Task` หรือ `async Task<T>` เสมอ
-- ห้ามใช้ `.Result` หรือ `.Wait()` บน Task อย่างเด็ดขาดเพราะจะทำให้เกิด Deadlock
-- ให้ส่งผ่าน `CancellationToken` ไปยังฟังก์ชันปลายทางเสมอ
+- **Constructor Injection Only:** ห้ามสร้าง Object ของ Service/Repository ขึ้นมาเองด้วยคีย์เวิร์ด `new` ต้องรับผ่าน Constructor เสมอ
+- **Single Responsibility Principle (SRP):** 1 Handler / 1 Service ต้องทำหน้าที่เพียงอย่างเดียว
+- **Modular DI Registration:** ใช้ Extension Methods ในการลงทะเบียน Services ตามแต่ละ Layer (เช่น `services.AddApplicationServices()`, `services.AddInfrastructureServices(configuration)`)
 
 ---
 
-## 6. การจัดการ Exception (Error Handling)
+## 4. 🗄️ การใช้งาน Entity Framework Core 8 Best Practices
 
-- ไม่ต้องเขียน `try-catch` ทุกที่ใน Controllers ระบบมี `ExceptionHandlingMiddleware` จัดการให้อยู่แล้ว
-- ให้ Throw Custom Exception ที่มีความหมายตรงตัว เช่น `NotFoundException`, `ValidationException`, `ConcurrencyException` แล้ว Middleware จะจับคู่เข้ากับ HTTP Status Code ตามมาตรฐาน Problem Details (RFC 7807) เอง
+1. **Fluent API Over Data Annotations:** 
+   - **ห้าม** ใช้ Data Annotations (เช่น `[Required]`, `[MaxLength]`, `[Table]`) ใน Entity Classes บน Domain Layer
+   - ให้เขียน Fluent API Configuration ในคลาสที่สืบทอดจาก `IEntityTypeConfiguration<T>` บนเลเยอร์ Infrastructure เท่านั้น
+2. **AsNoTracking สำหรับ Read Operations:**
+   - ใน Queries ทั้งหมดที่ไม่มีการแก้ไขข้อมูล ต้องใส่ `.AsNoTracking()` เสมอ เพื่อประหยัด Memory และลด Overhead ของ Change Tracker
+   ```csharp
+   var movies = await _context.Movies
+       .AsNoTracking()
+       .Where(m => m.IsActive)
+       .ToListAsync(cancellationToken);
+   ```
+3. **Explicit Database Indexing:** เพิ่ม Database Index บน Foreign Key Fields และ Fields ที่ใช้ค้นหาเป็นประจำ
+
+---
+
+## 5. ⚡ Async / Await Guidelines
+
+- ทุก Method ที่มีการทำงานทางด้าน I/O (Database, Network, File) ต้องเป็น `async Task` หรือ `async Task<T>` เสมอ
+- **ห้าม** ใช้ `.Result` หรือ `.Wait()` บน Task เด็ดขาด เพราะจะส่งผลให้เกิด Deadlock ใน Thread Pool
+- ต้องส่งต่อ `CancellationToken` ไปยัง Async Methods ปลายทางเสมอ
+
+---
+
+## 6. ⛔ Centralized Error Handling (RFC 7807)
+
+- **ห้าม** เขียน `try-catch` ซ้ำซ้อนใน Controllers ให้ปล่อยให้ Exception หลุดมายัง `ExceptionHandlingMiddleware`
+- ใช้ Custom Domain Exceptions ที่มีความหมายชัดเจน (เช่น `DomainException`, `NotFoundException`, `ValidationException`)
+- Middleware จะแปลง Exception ทั้งหมดเป็นฟอร์แมต **RFC 7807 (Problem Details)** โดยอัตโนมัติ

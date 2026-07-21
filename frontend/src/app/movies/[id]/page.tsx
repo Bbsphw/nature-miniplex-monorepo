@@ -8,11 +8,13 @@ import { Calendar, Tag, Film, ArrowLeft, Clock } from 'lucide-react';
 import Link from 'next/link';
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('th-TH', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 export default function MovieDetailPage() {

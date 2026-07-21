@@ -1,64 +1,75 @@
-# การติดตั้งและนำขึ้นระบบจริง (Deployment Guide)
+# 🚀 Nature MiniPlex - Deployment & Production Operations Guide
 
-[⬅️ กลับหน้า Backend](./README.md) | [🏠 กลับสู่หน้าหลัก](../README.md)
+[⬅️ กลับสู่ Backend README](./README.md) | [🏛️ Architecture Specs](./ARCHITECTURE.md) | [📚 API Documentation](./API_DOCS.md)
 
-ระบบ Nature MiniPlex ถูกออกแบบมาเพื่อให้เป็น Cloud-Native สามารถติดตั้งบนแพลตฟอร์มต่างๆ ที่รองรับ Docker ได้อย่างง่ายดาย
-
----
-
-## 1. การจัดการ Secrets และตัวแปรสิ่งแวดล้อม (Environment Variables)
-
-ในการขึ้นระบบจริง (Production) **ห้าม** อัปโหลดไฟล์ `.env.local` หรือเปิดเผยรหัสผ่านใน Source Code โดยเด็ดขาด 
-ต้องใช้ระบบจัดการ Secrets ของเซิร์ฟเวอร์หรือคลาวด์ เช่น GitHub Secrets, Azure Key Vault, AWS Secrets Manager โดยตัวแปรที่ต้องตั้งค่ามีดังนี้:
-
-- `ASPNETCORE_ENVIRONMENT` = `Production`
-- `CONNECTIONSTRINGS__DEFAULTCONNECTION` = `Server=...;Database=...;User Id=...;Password=...;`
-- `JWT__SECRETKEY` = สตริงความยาวอย่างน้อย 32 ตัวอักษร สำหรับเข้ารหัส Token
-- `JWT__ISSUER` = โดเมนของ Backend (เช่น `api.natureminiplex.com`)
+เอกสารฉบับนี้อธิบายกระบวนการ **Deployment**, **Containerization (Docker)**, **Environment Variables Configuration**, **Production Database Migrations**, และ **CI/CD Pipelines** สำหรับระบบ **Nature MiniPlex Backend**
 
 ---
 
-## 2. การอัปเดตฐานข้อมูล (Database Migrations)
+## 1. 🔑 การจัดการตัวแปรสิ่งแวดล้อมและความลับ (Environment Variables & Secrets)
 
-บนโปรดักชั่น **ไม่ควร** ให้โค้ดฝั่งแอปพลิเคชันทำการ Migrate ฐานข้อมูลอัตโนมัติ (เช่นการรัน `.MigrateAsync()` ใน `Program.cs`) เนื่องจากอาจเกิดปัญหาสคริปต์ชนกันเมื่อขยายแอปพลิเคชันหลายๆ เครื่องพร้อมกัน (Multiple replicas)
+ในสภาพแวดล้อม Production **ห้าม** เก็บไฟล์ `.env.local` หรือเปิดเผย Credentials ไว้ใน Source Control โดยเด็ดขาด ต้องฉีดค่าผ่าน Environment Variables หรือ Secrets Management System (เช่น Azure Key Vault, AWS Secrets Manager, GitHub Secrets):
 
-### วิธีที่ถูกต้องสำหรับ Production:
-1. ให้เครื่อง CI/CD รันคำสั่งสร้างสคริปต์ SQL จาก Migrations ล่าสุด:
-   ```bash
-   # CMD / PowerShell
-   dotnet ef migrations script --project src\NatureMiniPlex.Infrastructure --startup-project src\NatureMiniPlex.Api -o script.sql
-
-   # Bash (WSL / Linux / macOS)
-   dotnet ef migrations script --project src/NatureMiniPlex.Infrastructure --startup-project src/NatureMiniPlex.Api -o script.sql
-   ```
-2. นำไฟล์ `script.sql` นี้ไปรันอัปเดตระบบฐานข้อมูลจริง (ผ่าน DBA หรือ Pipeline แยกเฉพาะ Database)
+| ตัวแปร (Variable Name) | รายละเอียด (Description) | ตัวอย่างค่า (Example Value) |
+| :--- | :--- | :--- |
+| `ASPNETCORE_ENVIRONMENT` | สภาพแวดล้อมการทำงาน | `Production` |
+| `CONNECTIONSTRINGS__DEFAULTCONNECTION` | Connection String ไปยัง SQL Server | `Server=sql.prod;Database=NatureMiniPlexDb;User Id=...;Password=...;` |
+| `JWT__SECRETKEY` | Secret Key สำหรับเข้ารหัส JWT (ขั้นต่ำ 256 bits) | `SuperSecretKeyForProductionMinimum32CharsLong!` |
+| `JWT__ISSUER` | Issuer Domain ของ JWT Token | `https://api.natureminiplex.com` |
+| `JWT__AUDIENCE` | Audience Domain ของผู้ใช้งาน | `https://natureminiplex.com` |
 
 ---
 
-## 3. การสร้าง Docker Image (Containerization)
+## 2. 🛢️ การอัปเดตฐานข้อมูลใน Production (Production Database Migrations)
 
-ระบบได้เตรียม `Dockerfile` ไว้สำหรับแพ็กตัว API ให้พร้อมสำหรับการ Deploy
+บน Production **ไม่ควร** สั่งให้ Application รัน `.MigrateAsync()` โดยอัตโนมัติขณะ Startup เพื่อป้องกันปัญหา Schema Migration Collision เมื่อขยาย Application Replicas หลายตัว (Horizontal Scaling)
 
-1. สร้าง Image จากโฟลเดอร์ root ของ Backend:
-   ```bash
-   # CMD / PowerShell / Bash (WSL)
-   docker build -t nature-miniplex-api:latest .
-   ```
-2. นำ Image ขึ้น Container Registry (เช่น Docker Hub, Azure ACR):
-   ```bash
-   # CMD / PowerShell / Bash (WSL)
-   docker tag nature-miniplex-api:latest myregistry.azurecr.io/nature-miniplex-api:v1.0
-   docker push myregistry.azurecr.io/nature-miniplex-api:v1.0
-   ```
+### วิธีการสร้าง SQL Migration Script สำหรับ Production:
+```bash
+# สร้าง SQL Script จาก Migrations ล่าสุด
+dotnet ef migrations script --project src/Infrastructure/NatureMiniPlex.Infrastructure.csproj --startup-project src/API/NatureMiniPlex.API.csproj -o script.sql
+```
+นำไฟล์ `script.sql` ที่ได้ส่งต่อให้ Database Administrator (DBA) หรือสั่งรันผ่าน Dedicated Database Pipeline ก่อนการ Deploy API
 
 ---
 
-## 4. โครงสร้าง CI/CD Pipeline (GitHub Actions)
+## 3. 🐳 การสร้าง Docker Image (Containerization)
 
-โดยทั่วไป ระบบจะมี Workflow อัตโนมัติ (`.github/workflows/deploy.yml`):
-- **On Push (main)**:
-  1. ดึงโค้ดมารัน `dotnet build` และ `dotnet test`
-  2. หากผ่าน จะทำการ `docker build`
-  3. ดันอิมเมจขึ้น Registry
-  4. สั่งให้ Cloud Provider (เช่น Azure App Service หรือ Kubernetes) อัปเดต Image เป็นเวอร์ชันล่าสุด 
-- **Rollback**: หาก API เวอร์ชันล่าสุดทำให้เกิด Error ข้อมูลจะยังคงปลอดภัย สามารถกลับไปใช้ Image เวอร์ชันก่อนหน้าใน Registry ได้ทันที
+ระบบใช้ Multi-Stage Build ใน `Dockerfile` เพื่อให้ได้ Image มีขนาดเล็กลงและมีความปลอดภัยสูง:
+
+### 3.1 การ Build Docker Image
+```bash
+# รันคำสั่ง Build จาก Root Folder ของ Backend
+docker build -t nature-miniplex-api:latest .
+```
+
+### 3.2 การ Tag และ Push อิมเมจไปยัง Container Registry
+```bash
+docker tag nature-miniplex-api:latest myregistry.azurecr.io/nature-miniplex-api:v1.0.0
+docker push myregistry.azurecr.io/nature-miniplex-api:v1.0.0
+```
+
+---
+
+## 4. 🔄 CI/CD Automation Pipeline (GitHub Actions Workflow)
+
+กระบวนการทำ Deployment อัตโนมัติ:
+
+```text
+[ Developer Push code to 'main' branch ]
+                   │
+                   ▼
+     [ Step 1: Run 'dotnet build' ]
+                   │
+                   ▼
+     [ Step 2: Run 'dotnet test' ]
+                   │
+                   ▼
+  [ Step 3: Build & Push Docker Image ]
+                   │
+                   ▼
+ [ Step 4: Deploy to Azure App Service / K8s ]
+```
+
+- **Health Check Verification:** เมื่อ Container เริ่มทำงาน ระบบจะส่ง HTTP GET ไปยัง `/healthz` เพื่อตรวจสอบสถานะความพร้อมของระบบ
+- **Zero-Downtime Deployment:** ใช้งาน Rolling Update / Blue-Green Deployment ในการสลับ Container เวอร์ชันใหม่โดยไม่กระทบผู้ใช้งานเดิม

@@ -33,7 +33,7 @@ public class GetShowtimesQueryHandlerTests : BaseTest
             new ShowtimeDto { Id = 2, MovieId = 10, IsActive = true }
         };
         
-        MockShowtimeRepository.Setup(x => x.GetPagedShowtimesAsync(It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        MockShowtimeRepository.Setup(x => x.GetPagedShowtimesAsync(It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<DateTime?>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
                               .ReturnsAsync(showtimes);
 
         var query = new GetShowtimesQuery(MovieId: 10, null, null);
@@ -43,13 +43,13 @@ public class GetShowtimesQueryHandlerTests : BaseTest
 
         // Assert
         result.Should().HaveCount(2);
-        MockShowtimeRepository.Verify(x => x.GetPagedShowtimesAsync(10, null, null, 1, 20, It.IsAny<CancellationToken>()), Times.Once);
+        MockShowtimeRepository.Verify(x => x.GetPagedShowtimesAsync(10, null, null, 1, 20, true, It.IsAny<CancellationToken>()), Times.Once);
         
         // Act again to test cache
         var result2 = await _handler.Handle(query, CancellationToken.None);
         
         // Assert cache was used (repository should not be called again)
         result2.Should().HaveCount(2);
-        MockShowtimeRepository.Verify(x => x.GetPagedShowtimesAsync(10, null, null, 1, 20, It.IsAny<CancellationToken>()), Times.Once);
+        MockShowtimeRepository.Verify(x => x.GetPagedShowtimesAsync(10, null, null, 1, 20, true, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

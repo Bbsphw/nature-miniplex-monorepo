@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Calendar, Tag, Film, Clock } from 'lucide-react';
+import { Calendar, Tag } from 'lucide-react';
 import type { Movie } from '@/types/api';
 
 interface MovieCardProps {
@@ -7,10 +7,13 @@ interface MovieCardProps {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('th-TH', {
-    month: 'short',
-    day: 'numeric',
-  });
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 export function MovieCard({ movie }: MovieCardProps) {

@@ -1,94 +1,122 @@
-# คู่มือการทดสอบระบบ (Testing Guide)
+# 🧪 Nature MiniPlex - Testing Strategy & Quality Assurance Guide
 
-[⬅️ กลับหน้า Backend](./README.md) | [🏠 กลับสู่หน้าหลัก](../README.md)
+[⬅️ กลับสู่ Backend README](./README.md) | [🏛️ Architecture Specs](./ARCHITECTURE.md) | [📚 API Documentation](./API_DOCS.md)
 
-ระบบ Nature MiniPlex ให้ความสำคัญกับคุณภาพของซอร์สโค้ด ดังนั้นทุกครั้งที่มีการเขียนฟีเจอร์ใหม่หรือแก้ไขบั๊ก จะต้องมีกระบวนการทดสอบอัตโนมัติควบคู่เสมอ
-
----
-
-## 1. โครงสร้างโปรเจกต์ทดสอบ (Test Projects)
-
-โปรเจกต์ทดสอบถูกเก็บไว้ในโฟลเดอร์ `backend/tests/` ประกอบด้วย 3 ระดับหลัก:
-1. **`NatureMiniPlex.Domain.UnitTests`**:
-   - หน้าที่: ทดสอบ Business Rules หรือตรรกะที่อยู่ใน Entities ล้วนๆ
-   - ลักษณะ: เร็วที่สุด ไม่มี Dependencies ภายนอก
-2. **`NatureMiniPlex.Application.UnitTests`**:
-   - หน้าที่: ทดสอบ Use Cases, Command Handlers และ Services
-   - ลักษณะ: ใช้การสร้าง **Mocks** (เช่น 라이บรารี `Moq` หรือ `NSubstitute`) แทนการต่อ Database หรือ API จริง
-3. **`NatureMiniPlex.API.IntegrationTests`**:
-   - หน้าที่: ทดสอบรวมตั้งแต่ Controller ทะลุลงไปถึง Database 
-   - ลักษณะ: ใช้ `WebApplicationFactory` เพื่อจำลอง HTTP Server และสร้าง In-Memory Database หรือ Testcontainers เพื่อจำลองสภาพแวดล้อมเสมือนจริง
+เอกสารฉบับนี้กำหนดมาตรฐานการทดสอบระบบ (Testing Strategy), แนวทางการเขียน Unit Tests, Integration Tests, และการวัดผล Test Coverage สำหรับโปรเจกต์ **Nature MiniPlex Backend**
 
 ---
 
-## 2. วิธีการรันเทสต์ (Running Tests)
+## 1. 🏗️ โครงสร้างชุดทดสอบ (Test Project Architecture)
 
-สำหรับการรันชุดทดสอบทั้งหมดในโปรเจกต์ (เปิด Terminal ไปที่โฟลเดอร์ `backend/`):
+ชุดทดสอบในระบบแบ่งออกเป็น 3 ระดับหลักตาม Testing Pyramid:
+
+```text
+                     / \
+                    /   \
+                   / API \   <- Integration Tests (WebApplicationFactory)
+                  /------- \
+                 /   App    \  <- Unit Tests (MediatR Handlers, Moq, FluentAssertions)
+                /------------\
+               /    Domain    \ <- Unit Tests (Pure Entities Rules)
+              /----------------\
+```
+
+1. **`tests/NatureMiniPlex.Domain.UnitTests`:**
+   - **ขอบเขต:** ทดสอบ Business Logic ใน Entities ล้วนๆ (เช่น `showtime.EnsureCanBookOrCancel()`)
+   - **ลักษณะ:** รันเร็วที่สุด ไม่มี External Dependencies หรือ Mocks
+2. **`tests/NatureMiniPlex.Application.UnitTests`:**
+   - **ขอบเขต:** ทดสอบ CQRS Handlers (`CreateBookingCommandHandler`), Validators, และ Application Services
+   - **ลักษณะ:** ใช้ **Moq** ในการจำลอง Interfaces (`IBookingRepository`, `IUnitOfWork`, `IEmailService`)
+3. **`tests/NatureMiniPlex.API.IntegrationTests`:**
+   - **ขอบเขต:** ทดสอบ End-to-End HTTP Requests ตั้งแต่ Controller Pipeline ทะลุลงไปถึง Database Layer
+   - **ลักษณะ:** ใช้ `WebApplicationFactory` และ `Microsoft.AspNetCore.Mvc.Testing` ในการจำลอง HTTP Server และใช้ In-Memory Database / Testcontainers
+
+---
+
+## 2. ⚡ คำสั่งรันชุดทดสอบ (Execution Commands)
+
 ```bash
-# CMD / PowerShell / Bash (WSL)
+# รันชุดทดสอบทั้งหมดใน Solution (42 Passed)
 dotnet test
-```
 
-หากต้องการดูรายละเอียด (Verbosity) เพิ่มเติม:
-```bash
-# CMD / PowerShell / Bash (WSL)
+# รันชุดทดสอบพร้อมแสดงข้อมูลอย่างละเอียด (Detailed Verbosity)
 dotnet test --logger "console;verbosity=detailed"
-```
 
-รันเฉพาะ Unit Tests ชั้น Application:
-```bash
-# CMD / PowerShell
-dotnet test tests\NatureMiniPlex.Application.UnitTests\
+# รันเฉพาะ Domain Unit Tests
+dotnet test tests/NatureMiniPlex.Domain.UnitTests/
 
-# Bash (WSL / Linux / macOS)
+# รันเฉพาะ Application Unit Tests
 dotnet test tests/NatureMiniPlex.Application.UnitTests/
+
+# รันเฉพาะ API Integration Tests
+dotnet test tests/NatureMiniPlex.API.IntegrationTests/
 ```
 
 ---
 
-## 3. มาตรฐานการเขียน Unit Test (AAA Pattern)
+## 3. 📐 มาตรฐานการเขียน Unit Test (AAA Pattern)
 
-การเขียนโค้ดเพื่อทดสอบต้องยึดหลัก **Arrange, Act, Assert** เพื่อความอ่านง่าย:
+การเขียน Test Method ทั้งหมดต้องปฏิบัติตาม **Arrange, Act, Assert (AAA)** Pattern:
 
 ```csharp
 [Fact]
-public void CalculateTotalPrice_ShouldReturnCorrectValue()
+public async Task Handle_ShouldThrowDomainException_WhenShowtimeNotFound()
 {
-    // 1. Arrange: เตรียมข้อมูลและตัวแปร
-    var showtimePrice = 200m;
-    var seatCount = 2;
+    // 1. Arrange: เตรียม Mock และ Input Data
+    var mockShowtimeRepo = new Mock<IShowtimeRepository>();
+    mockShowtimeRepo.Setup(x => x.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync((Showtime?)null);
 
-    // 2. Act: เรียกใช้ฟังก์ชันที่ต้องการทดสอบ
-    var total = BookingService.Calculate(showtimePrice, seatCount);
+    var handler = new CreateBookingCommandHandler(
+        mockShowtimeRepo.Object, 
+        Mock.Of<IBookingRepository>(), 
+        Mock.Of<IRepository<Customer>>(), 
+        Mock.Of<IEmailService>(), 
+        Mock.Of<IUnitOfWork>());
 
-    // 3. Assert: ตรวจสอบผลลัพธ์
-    Assert.Equal(400m, total);
+    var command = new CreateBookingCommand(1, "0812345678", "test@example.com", new List<int> { 25 });
+
+    // 2. Act & 3. Assert: เรียกใช้งานและตรวจสอบว่า Throw DomainException หรือไม่
+    await Assert.ThrowsAsync<DomainException>(() => handler.Handle(command, CancellationToken.None));
 }
 ```
 
 ---
 
-## 4. โครงสร้าง Integration Tests (End-to-End)
+## 4. 🌐 โครงสร้าง Integration Testing (WebApplicationFactory & Isolation)
 
-สำหรับโปรเจกต์ Nature MiniPlex มีการใช้ **`xUnit`** ร่วมกับ **`Microsoft.AspNetCore.Mvc.Testing`** (`WebApplicationFactory`) เพื่อทำ Integration Testing โดยมีโครงสร้างดังนี้:
+```csharp
+public class BookingsControllerTests : IClassFixture<CustomWebApplicationFactory>
+{
+    private readonly HttpClient _client;
 
-1. **CustomWebApplicationFactory**
-   - ทำหน้าที่ Overrides การทำงานของ Services ต่างๆ ใน `Program.cs`
-   - **Database:** ปัจจุบันมีการตั้งค่าให้ใช้ `InMemoryDatabase` แทน SQL Server หรือ Testcontainers เพื่อความรวดเร็วและแก้ปัญหาคอขวดของการจำลอง Docker ใน Environment บางประเภท (เช่น WSL)
-   - มีการเขียน `ApplicationDbContext.SaveChangesAsync` Override พิเศษเพื่อเติมค่า `RowVersion` อัตโนมัติเวลาทำ In-Memory (เพื่อเลี่ยงบั๊ก Missing Properties)
+    public BookingsControllerTests(CustomWebApplicationFactory factory)
+    {
+        _client = factory.CreateClient();
+    }
 
-2. **การจำลองสิทธิ์ผู้ใช้งาน (Mock Authentication)**
-   - ระบบมีการเพิ่ม `TestAuthHandler` ເพื่อจำลอง Token แบบง่าย
-   - โดยสามารถกำหนด Role ผ่าน Header ได้เลย เช่น `_client.DefaultRequestHeaders.Add("X-Test-Role", "Owner");`
-   - หากไม่ต้องการจำลอง Auth สามารถงดส่ง Header `Authorization: Test` ได้เลย
+    [Fact]
+    public async Task CreateBooking_ShouldReturnCreated_WhenValidRequest()
+    {
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/bookings", new {
+            showtimeId = 1,
+            phoneNumber = "0812345678",
+            seatIds = new[] { 10 }
+        });
 
-3. **การล้างข้อมูล (State Isolation)**
-   - ในทุกๆ คลาสของ Test จะต้องประกาศใช้ `IAsyncLifetime` และทำการสร้าง Database ใหม่ใน `InitializeAsync` (`await dbContext.Database.EnsureDeletedAsync(); await dbContext.Database.EnsureCreatedAsync();`) 
-   - อย่าลืมใช้ `dbContext.ChangeTracker.Clear();` ก่อน Assert ข้อมูลที่อัปเดตผ่าน API ทุกครั้ง ป้องกันการดึงค่าจาก Cache เดิม
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+}
+```
 
 ---
 
-## 5. ข้อควรระวัง (Gotchas)
+## 5. 🎯 Test Coverage & Quality Gates
 
-- **.NET Runtime**: การจะรัน `dotnet test` สำเร็จ เครื่องของคุณต้องมี **.NET 8.0 Runtime** ติดตั้งอยู่ หากมีเวอร์ชันที่สูงกว่าแต่ไม่มีเวอร์ชัน 8 อาจเกิดข้อผิดพลาด `Testhost process exited with error` ให้อัปเดตแพ็กเกจหรือรันด้วย `--roll-forward Major`
-- **WSL / Docker Constraints**: เดิมที Integration Test ควรจะใช้ `Testcontainers` เพื่อยก Database จริงขึ้นมา แต่ในบาง Environment (โดยเฉพาะ WSL2 บน Windows) อาจกิน RAM สูงหรือ Port ชนกันได้ จึงเปลี่ยนมาใช้ In-Memory เป็นทางเลือกหลักแทน
+- **Unit Test Pass Rate Requirement:** 100% Pass ก่อนทุก Pull Request จะถูก Merge
+- **Code Coverage Target:** 
+  - Domain Layer: >= 90%
+  - Application Layer (Handlers & Validation): >= 85%
+  - API Layer (Integration Tests): >= 80%

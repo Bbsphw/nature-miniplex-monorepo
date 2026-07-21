@@ -10,36 +10,29 @@ public static class DbInitializer
 {
     public static async Task InitializeAsync(ApplicationDbContext context)
     {
-        // Data Migration: Fix old 'Admin' roles in the database to match the new 'Owner' enum
+        // Data Migration: Fix old 'Admin' roles and unhashed admin accounts if needed
         try 
         {
-            await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(context.Database, "UPDATE Users SET Role = 'Owner' WHERE Role = 'Admin'");
-            
-            // Fix unhashed or standard hash for old 'admin' account if it exists as plain text or standard bcrypt
-            string newHashedAdminPassword = BCrypt.Net.BCrypt.EnhancedHashPassword("Password123!", 13);
-            await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(context.Database, 
-                "UPDATE Users SET PasswordHash = {0} WHERE Username = 'admin'", 
-                newHashedAdminPassword);
+            // Fix unhashed or legacy admin account if password hash is missing or not a valid BCrypt hash
+            var adminUser = context.Set<User>().FirstOrDefault(u => u.Username == "admin");
+            if (adminUser != null)
+            {
+                if (adminUser.Role.ToString() == "Admin")
+                {
+                    adminUser.Role = NatureMiniPlex.Core.Domain.Enums.UserRole.Owner;
+                }
+                if (string.IsNullOrEmpty(adminUser.PasswordHash) || !adminUser.PasswordHash.StartsWith("$2"))
+                {
+                    adminUser.PasswordHash = BCrypt.Net.BCrypt.EnhancedHashPassword("Password123!", 11);
+                }
+                await context.SaveChangesAsync();
+            }
 
-            // Fix any cinemas that were seeded as IsActive = false (0)
-            await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(context.Database, "UPDATE Cinemas SET IsActive = 1 WHERE IsActive = 0");
-
-            // Re-assign Seats and Showtimes from duplicate cinemas to the main cinema ID for each name
-            await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(context.Database, @"
-                UPDATE s SET s.CinemaId = c_min.MinId
-                FROM Seats s
-                JOIN Cinemas c ON s.CinemaId = c.Id
-                JOIN (SELECT Name, MIN(Id) AS MinId FROM Cinemas GROUP BY Name) c_min ON c.Name = c_min.Name;
-
-                UPDATE st SET st.CinemaId = c_min.MinId
-                FROM Showtimes st
-                JOIN Cinemas c ON st.CinemaId = c.Id
-                JOIN (SELECT Name, MIN(Id) AS MinId FROM Cinemas GROUP BY Name) c_min ON c.Name = c_min.Name;
-
-                DELETE FROM Seats WHERE Id NOT IN (SELECT MIN(Id) FROM Seats GROUP BY CinemaId, RowName, ColumnName);
-
-                DELETE FROM Cinemas WHERE Id NOT IN (SELECT MIN(Id) FROM Cinemas GROUP BY Name);
-            ");
+            // Fix any inactive cinemas or duplicate entries only if needed
+            if (context.Set<Cinema>().Any(c => !c.IsActive))
+            {
+                await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(context.Database, "UPDATE Cinemas SET IsActive = 1 WHERE IsActive = 0");
+            }
         }
         catch (System.Exception) 
         {
@@ -49,9 +42,7 @@ public static class DbInitializer
         // Add Default Owner if no users exist
         if (!context.Set<User>().Any())
         {
-            // Note: In a real production app, use an IPasswordHasher service to generate the hash.
-            // For simplicity in the seeder, this is the BCrypt Enhanced hash for "Password123!"
-            string hashedAdminPassword = BCrypt.Net.BCrypt.EnhancedHashPassword("Password123!", 13);
+            string hashedAdminPassword = BCrypt.Net.BCrypt.EnhancedHashPassword("Password123!", 11);
             
             var adminUser = new User
             {
@@ -102,6 +93,48 @@ public static class DbInitializer
                 }
             }
             context.Set<Seat>().AddRange(bangsaenSeats);
+            await context.SaveChangesAsync();
+        }
+
+        // Seed 25 Movies for testing 20+ movies UX search and scrolling
+        if (context.Set<Movie>().Count() < 20)
+        {
+            var seedMovies = new List<Movie>
+            {
+                new Movie { Title = "Avatar: The Way of Water", BasePrice = 160, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Avengers: Endgame", BasePrice = 150, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Spider-Man: Across the Spider-Verse", BasePrice = 140, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Oppenheimer", BasePrice = 160, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Barbie", BasePrice = 140, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Dune: Part Two", BasePrice = 170, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Top Gun: Maverick", BasePrice = 150, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "The Dark Knight", BasePrice = 140, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Interstellar", BasePrice = 160, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Inception", BasePrice = 140, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Inside Out 2", BasePrice = 130, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Deadpool & Wolverine", BasePrice = 170, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Godzilla x Kong: The New Empire", BasePrice = 150, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Kung Fu Panda 4", BasePrice = 130, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Despicable Me 4", BasePrice = 130, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Moana 2", BasePrice = 140, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Gladiator II", BasePrice = 160, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Wicked", BasePrice = 150, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Joker: Folie à Deux", BasePrice = 160, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Transformers One", BasePrice = 140, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Kingdom of the Planet of the Apes", BasePrice = 150, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Alien: Romulus", BasePrice = 150, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "The Batman", BasePrice = 150, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Mission: Impossible - Dead Reckoning", BasePrice = 160, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+                new Movie { Title = "Guardians of the Galaxy Vol. 3", BasePrice = 150, StartDate = new DateTime(2026, 7, 1), EndDate = new DateTime(2026, 8, 30), IsActive = true },
+            };
+
+            foreach (var m in seedMovies)
+            {
+                if (!context.Set<Movie>().Any(existing => existing.Title == m.Title))
+                {
+                    context.Set<Movie>().Add(m);
+                }
+            }
             await context.SaveChangesAsync();
         }
     }

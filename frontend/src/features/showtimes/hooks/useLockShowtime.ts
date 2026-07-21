@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
-import { toast } from 'sonner';
+import { toast } from '@/store/useToastStore';
 import axios from 'axios';
 
 export function useLockShowtime() {
@@ -12,7 +12,7 @@ export function useLockShowtime() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['showtimes'] });
-      toast.success('อัพเดทสถานะการล็อครอบฉายสำเร็จ');
+      void queryClient.invalidateQueries({ queryKey: ['admin-showtimes'] });
     },
     onError: (error) => {
       if (axios.isAxiosError(error)) {

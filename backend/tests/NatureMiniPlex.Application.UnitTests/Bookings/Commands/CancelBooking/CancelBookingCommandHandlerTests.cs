@@ -72,7 +72,7 @@ public class CancelBookingCommandHandlerTests : BaseTest
         Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<Exception>().WithMessage("Phone number does not match the booking owner.");
+        await act.Should().ThrowAsync<Exception>().WithMessage("*เบอร์โทรศัพท์ไม่ตรงกับผู้จอง*");
     }
 }
 

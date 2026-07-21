@@ -25,7 +25,6 @@ const navItems = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const token = useAuthStore((state) => state.token);
   const username = useAuthStore((state) => state.username);
   const role = useAuthStore((state) => state.role);
   const logout = useAuthStore((state) => state.logout);

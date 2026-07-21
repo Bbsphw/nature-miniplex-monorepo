@@ -1,75 +1,237 @@
-# Nature MiniPlex - Infrastructure (IaC)
+# Nature MiniPlex - Enterprise Infrastructure & IaC Standard
 
-[⬅️ กลับสู่หน้าแรก (Back to Root)](../README.md)
-Directory นี้จัดเก็บไฟล์ตั้งค่าโครงสร้างพื้นฐาน (Infrastructure configuration), Scripts สำหรับ Deployment และระบบไปป์ไลน์ CI/CD ของโปรเจกต์ Nature MiniPlex โดยเรายึดหลักการแบบ **Infrastructure as Code (IaC)** เพื่อสร้าง Environment ที่สามารถนำกลับมาสร้างใหม่ได้ง่าย (Reproducible)
+[⬅️ กลับสู่หน้าแรก (Back to Root Documentation)](../README.md)
 
-## 🐳 โครงสร้างพื้นฐานสำหรับการพัฒนาบนเครื่อง (Local Development)
+ยินดีต้อนรับสู่ส่วนจัดการโครงสร้างพื้นฐาน (**Infrastructure as Code - IaC & Container Orchestration**) ของโปรเจกต์ **Nature MiniPlex** (ระบบจองตั๋วภาพยนตร์) เอกสารนี้อธิบายรายละเอียดสถาปัตยกรรมระบบ, การตั้งค่าสภาพแวดล้อม (Environment Variables), การรันระบบผ่าน Docker Compose สำหรับ Local Development, โครงสร้าง Terraform สำหรับ Enterprise Cloud Deployment, และระบบ CI/CD Automation ตามข้อกำหนด **Software Requirements Specification (SRS)**
 
-เราใช้ Docker Compose สำหรับรัน Dependencies ที่จำเป็นต่อระบบ Backend เพื่อจำลอง Environment เสมือนจริง
+---
 
-### แผนภาพการเชื่อมต่อ (Local Architecture)
+## 🏛️ สถาปัตยกรรมระบบและการรองรับ SRS (Architecture & SRS Mapping)
+
+ระบบรองรับการจองตั๋วภาพยนตร์แบบ Concurrency สูง (สูงสุด 4 ที่นั่งต่อรายการ) โดยป้องกันการจองซ้ำ (Double Booking 100%) ผ่านกลยุทธ์ Optimistic Concurrency (`RowVersion`) และรองรับการขยายระบบ (Autoscaling) อย่างเป็นอิสระ
 
 ```mermaid
 graph TD
-    A[Backend API<br/>localhost:5000] -->|TCP: 1433| B[(SQL Server 2022)]
-    B -.->|Volume Mount| D[miniplex_sql_data]
+    Client[Browser / User Agent] -->|HTTPS: 443| ALB[Application Load Balancer]
+    
+    subgraph VPC["Virtual Private Cloud (VPC: 10.0.0.0/16)"]
+        subgraph PublicSubnets["Public Subnets (Web / Ingress Tier)"]
+            ALB
+            FE[Frontend Web Container<br/>Next.js 16 - Standalone]
+        end
+        
+        subgraph PrivateSubnets["Private Subnets (Isolated App & Data Tier)"]
+            API[Booking API Cluster<br/>.NET 8 Web API / ECS Fargate]
+            DB[(RDS MS SQL Server 2022<br/>Multi-AZ / ACID Transactional)]
+            Mail[Mailpit Local SMTP<br/>Email Capture Engine]
+        end
+    end
+    
+    ALB -->|Port 3000| FE
+    FE -->|Port 5000| API
+    API -->|Port 1433| DB
+    API -->|Port 1025| Mail
+    Client -.->|Mail Web UI: 8025| Mail
+    
+    API -.->|State Lock / RowVersion| DB
 ```
 
-### วิธีรัน Local Services
+### ตารางเปรียบเทียบ SRS Requirements กับ IaC Architecture Design
 
-ตรวจสอบให้แน่ใจว่าโปรแกรม **Docker Desktop** กำลังทำงานอยู่
-
-1. **เตรียมไฟล์ Environment**:
-   - คัดลอกไฟล์ `.env.example` ไปเป็น `.env` ในโฟลเดอร์ `infra`
-   - ปรับแก้ไขรหัสผ่าน `SA_PASSWORD` หรือ Port ต่างๆ ให้ตรงตามต้องการ
-   - *(ข้อควรระวัง: `infra/.env` ถูกตั้งค่าใน `.gitignore` แล้ว เพื่อป้องกันการเผลอ Commit รหัสผ่าน)*
-
-2. **Start Services**:
-   ```bash
-   cd infra
-   docker-compose up -d
-   ```
-   คำสั่งนี้จะทำการ Start บริการดังต่อไปนี้:
-   - **SQL Server**: Relational Database หลักของระบบ (Port ตามที่ตั้งใน `.env` เช่น `1433`)
-
-3. **Persistent Volumes**:
-   ข้อมูลฐานข้อมูลจะถูกบันทึกไว้นอก Container ผ่านระบบ Docker Volumes (`miniplex_sql_data`) ทำให้ข้อมูลไม่หายไปแม้ว่าจะทำการ `docker-compose down`
-
-4. **Stop Services**:
-   เมื่อต้องการหยุดระบบ ให้รัน:
-   ```bash
-   docker-compose down
-   ```
-   *(หากต้องการลบข้อมูลใน Volume ด้วย ให้เพิ่ม Flag `-v` เข้าไป: `docker-compose down -v`)*
+| SRS Requirement / Requirement Type | รายละเอียดข้อกำหนด (Requirement Detail) | การออกแบบในสถาปัตยกรรม IaC (Infrastructure Design) |
+| :--- | :--- | :--- |
+| **NFR1: Performance & Scalability** | API โหลดผังที่นั่ง < 500ms, รองรับทราฟฟิกช่วงตั๋วเปิดขาย | แยก Tier Compute ของ **Booking API (ECS Fargate)** ออกจาก Frontend/Database เพื่อทำ Target Tracking Autoscaling (2-10 Instances) ได้อย่างอิสระ |
+| **NFR2: Data Integrity & Concurrency** | ป้องกันการจองที่นั่งซ้ำซ้อน 100% (Race Conditions) | จัดสรร **RDS SQL Server 2022 Multi-AZ** พร้อม ACID Transaction และรองรับ `RowVersion` Optimistic Concurrency Control ใน EF Core 8 |
+| **NFR3: Security & Network Isolation** | Principle of Least Privilege และ 12-Factor Config | แยก Database และ API ไว้ใน **Private Subnets** ห้ามเข้าถึงตรงจากภายนอก, ปราศจาก Hardcoded Secrets โดยใช้ระบบ `.env` / AWS Secrets Manager |
+| **Developer Frictionless Mode** | รันและทดสอบระบบได้ง่ายบนเครื่อง local (Zero Friction) | มี **Docker Compose** Orchestration ใน `infra/docker/` ครบทุก Service (`sqlserver`, `mailpit`, `backend`, `frontend`) รันได้ในคำสั่งเดียว |
 
 ---
 
-## 🚀 CI/CD Pipelines (GitHub Actions)
+## 📁 โครงสร้างไดเรกทอรีมาตรฐาน (Standardized Directory Tree)
 
-ระบบ Pipelines แบบอัตโนมัติของเราจะอยู่ในโฟลเดอร์ `.github/workflows/` (ที่ระดับ Repo Root)
-
-- **CI Pipeline (Continuous Integration)**: จะถูกเรียกใช้งานทุกครั้งที่มีการเปิด Pull Request (PR) เข้าสู่ Branch `main`
-  - ทำการรัน Code Linting / Formatting
-  - ทำการรัน Unit Tests สำหรับ Backend และ Frontend
-  - สรุป Test Coverage
-- **CD Pipeline (Continuous Deployment)**: จะทำงานเมื่อ PR ถูก Merge เข้า `main`
-  - สร้าง Docker Images ใหม่
-  - พุช Image ขึ้น Container Registry
-  - สั่ง Trigger การ Deploy ขึ้น Environment 
+```
+infra/
+├── .env.example                       # เทมเพลตตัวแปรสิ่งแวดล้อม (Committed to VCS)
+├── .env                               # ค่าสเกลาร์สภาพแวดล้อม Local (Git-ignored)
+├── .gitignore                         # ป้องกันการ Commit Secrets & Terraform State
+├── README.md                          # เอกสารอธิบายสถาปัตยกรรมและการใช้งาน Infra
+├── docker/                            # การจำลองระบบ Local Development
+│   └── docker-compose.yml             # Container Orchestration (sqlserver, backend, frontend, mailpit)
+└── terraform/                         # Enterprise Infrastructure as Code (IaC)
+    ├── environments/                  # การจัดตั้งตามสภาพแวดล้อมใช้งาน
+    │   ├── dev/
+    │   │   ├── main.tf                # การประกอบ Modules และตั้งค่า S3 Remote State
+    │   │   ├── outputs.tf             # ค่า Output หลักของ Dev Environment
+    │   │   ├── terraform.tfvars.example # ตัวอย่างไฟล์ตารางตัวแปร Input
+    │   │   └── variables.tf           # นิยามตัวแปร Input สำหรับ Dev
+    │   ├── staging/                   # สภาพแวดล้อมจำลองเสมือนจริง (Staging Mirror)
+    │   └── prod/                      # สภาพแวดล้อมใช้งานจริงแบบ Multi-AZ High Availability
+    └── modules/                       # Reusable Infrastructure Modules
+        ├── app_service/               # Compute Tier (ECS/Fargate Cluster & Autoscaling)
+        │   ├── main.tf
+        │   ├── outputs.tf
+        │   └── variables.tf
+        ├── database/                  # Managed Database Tier (ACID & Backup Retention)
+        │   ├── main.tf
+        │   ├── outputs.tf
+        │   └── variables.tf
+        └── networking/                # Network Tier (VPC, Public/Private Subnets, Gateways)
+            ├── main.tf
+            ├── outputs.tf
+            └── variables.tf
+```
 
 ---
 
-## ☁️ กลยุทธ์การ Deploy ขึ้น Cloud (Deployment Strategy)
+## 🛠️ โหมดการรันระบบ Local (Flexible Execution Modes)
 
-- **Backend (API)**: จะถูกแพ็กเก็บในรูปแบบของ .NET Linux container มาตรฐาน 
-- **Frontend (Web)**: จะถูกแพ็กเก็บในรูปแบบของ Next.js standalone container
+คุณสามารถเลือกรันระบบผ่าน **Docker Compose** (`infra/docker/docker-compose.yml`) ได้ 3 รูปแบบตามความต้องการ:
 
-*หมายเหตุ: รายละเอียดของ Cloud Provider (เช่น Azure Bicep หรือ AWS Terraform) จะถูกเพิ่มเข้ามาอัปเดตในโฟลเดอร์นี้ตามลำดับแผนการพัฒนาระยะถัดไป*
+### 🔹 โหมดที่ 1: รันเฉพาะ Dependencies สำหรับการพัฒนา (Dev Dependencies Only)
+> **เหมาะสำหรับการพัฒนาโค้ดบนเครื่องโฮสต์ (Hot-Reloading)**
+> รันเฉพาะ Database (SQL Server) และ Mail Server (Mailpit) ใน Container แล้วเปิดรัน Backend (`dotnet run`) และ Frontend (`pnpm dev`) บนเครื่องของคุณเพื่อความรวดเร็วในการ Debug
+
+```bash
+cd infra
+cp .env.example .env
+docker compose -f docker/docker-compose.yml up -d sqlserver mailpit
+```
 
 ---
 
-## 🌊 การจัดการสาขา (Git Flow)
+### 🔹 โหมดที่ 2: รันเฉพาะบางบริการตามต้องการ (Individual Service Mode)
+> **เลือกรันเฉพาะ Container ที่ต้องการทดสอบ:**
 
-โปรเจกต์นี้ใช้มาตรฐาน **Git Flow** ในการทำงาน สำหรับส่วนของ Infrastructure:
-- การเปลี่ยนแปลง Configuration หรือ Scripts ต่างๆ ต้องทำผ่านกิ่ง `feature/*` ที่แตกออกจาก `develop`
-- ทำตามข้อกำหนดการเปิด Pull Request ตามที่ระบุไว้ใน [CONTRIBUTING.md](../CONTRIBUTING.md)
+```bash
+cd infra
+
+# รันเฉพาะ Database MS SQL Server
+docker compose -f docker/docker-compose.yml up -d sqlserver
+
+# รันเฉพาะ Mailpit SMTP Server
+docker compose -f docker/docker-compose.yml up -d mailpit
+
+# รันเฉพาะ Backend API (.NET 8 Container)
+docker compose -f docker/docker-compose.yml up --build -d backend
+
+# รันเฉพาะ Frontend Web (Next.js 16 Container)
+docker compose -f docker/docker-compose.yml up --build -d frontend
+```
+
+---
+
+### 🔹 โหมดที่ 3: รันแบบ Full-Stack ครบทุกบริการ (Full-Stack Container Mode)
+> **เหมาะสำหรับผู้ตรวจข้อสอบสัมภาษณ์งาน (Reviewers / Evaluators)**
+> สั่งรันครบทั้งระบบ (`sqlserver` + `mailpit` + `backend` + `frontend`) ในคำสั่งเดียวโดยไม่ต้องติดตั้ง .NET 8 SDK หรือ Node.js บนเครื่องโฮสต์
+
+```bash
+cd infra
+cp .env.example .env
+docker compose -f docker/docker-compose.yml up --build -d
+```
+
+---
+
+## 🌐 ตารางแสดง Endpoints & Access Info
+
+| บริการ (Service) | รายละเอียด (Description) | URL / Endpoint | บัญชีเข้าใช้งาน / ค่าเริ่มต้น |
+| :--- | :--- | :--- | :--- |
+| **Frontend Web** | หน้าเว็บ Next.js 16 SSR | [http://localhost:3000](http://localhost:3000) | - |
+| **Backend API** | .NET 8 RESTful Booking API | [http://localhost:5000](http://localhost:5000) | - |
+| **Swagger UI** | OpenAPI Interactive Spec | [http://localhost:5000/swagger](http://localhost:5000/swagger) | - |
+| **Mailpit Web UI** | ตรวจสอบอีเมลทดสอบ (E-Ticket) | [http://localhost:8025](http://localhost:8025) | - |
+| **Mailpit SMTP** | พอร์ตรับส่งอีเมล SMTP | `localhost:1025` | Port `1025` |
+| **SQL Server** | MS SQL Server 2022 DB Port | `localhost:1433` | User: `sa` / Password: `${SA_PASSWORD}` |
+
+---
+
+## 🔑 การจัดการตัวแปรสิ่งแวดล้อม (Environment Variables Reference)
+
+ไฟล์ `.env` และ `.env.example` ในโฟลเดอร์ `infra/` ถูกวางโครงสร้างอย่างเป็นระเบียบครอบคลุมทุกส่วนของ Monorepo:
+
+| ตัวแปร (Variable Name) | ค่าเริ่มต้น (Default Value) | คำอธิบาย (Description) |
+| :--- | :--- | :--- |
+| **DB_SERVER** | `sqlserver` | ชื่อ Service DB ใน Docker Network หรือ Host Domain |
+| **DB_NAME** | `NatureMiniPlexDb` | ชื่อฐานข้อมูลหลักของโปรเจกต์ |
+| **SA_PASSWORD** | `NaturePlex@2026!` | รหัสผ่านผู้ดูแลระบบ SQL Server (ต้องตรงตามนโยบายความปลอดภัย) |
+| **SQL_PORT** | `1433` | พอร์ตภายนอกที่ Map เข้า SQL Server Container |
+| **API_PORT** | `5000` | พอร์ตภายนอกของ Backend API |
+| **FRONTEND_PORT** | `3000` | พอร์ตภายนอกของ Frontend Web App |
+| **MAILPIT_SMTP_PORT** | `1025` | พอร์ต SMTP สำหรับส่งอีเมล |
+| **MAILPIT_WEB_PORT** | `8025` | พอร์ตหน้าเว็บ UI สำหรับดูอีเมลที่ส่งออก |
+| **CORS__ALLOWEDORIGINS** | `http://localhost:3000,...` | Origins ที่อนุญาตให้เรียกใช้งาน API |
+| **JwtSettings__Secret** | `Development_Secret_Key...` | Key สำหรับสร้างและตรวจยืนยัน JWT Tokens (ความยาว ≥ 32 ตัวอักษร) |
+| **SmtpSettings__Host** | `mailpit` | Hostname ของบริการส่งอีเมล SMTP |
+| **NEXT_PUBLIC_MAX_SEATS_PER_BOOKING** | `4` | จำนวนที่นั่งสูงสุดต่อ 1 การจองตามข้อกำหนด SRS |
+
+---
+
+## 🔐 การบริหารจัดการ State & ความปลอดภัยใน Terraform (IaC)
+
+### Remote State Storage & State Locking
+ในการใช้งาน Terraform ระดับ Production โครงสร้างถูกออกแบบเป็น **Single Source of Truth** เพื่อป้องกัน Configuration Drift:
+- **S3 Bucket (Remote Backend)**: เข้ารหัสข้อมูลที่จัดเก็บ (Server-Side Encryption via KMS) และเปิดใช้งาน Versioning
+- **DynamoDB State Locking**: ป้องกันการสั่ง `terraform apply` พร้อมกันจากนักพัฒนาหลายคนหรือจาก CI/CD Runners
+
+```hcl
+terraform {
+  backend "s3" {
+    bucket         = "miniplex-tfstate-prod-us-east-1"
+    key            = "prod/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "miniplex-tflocks-prod"
+    encrypt        = true
+  }
+}
+```
+
+### การควบคุมความปลอดภัย (Security Standards)
+- **Principle of Least Privilege**: กำหนด Security Group Rules ให้เฉพาะ Backend Tier เท่านั้นที่สามารถเชื่อมต่อกับ Database ในพอร์ต `1433` ได้
+- **Zero Hardcoded Secrets**: ไม่อนุญาตให้ Hardcode Credentials ในไฟล์ `.tf` โดยใช้การฉีดค่าผ่าน Secret Manager หรือ Variables
+
+---
+
+## 🚀 ระบบตรวจสอบอัตโนมัติใน CI/CD Pipeline
+
+ทุกการสร้าง Pull Request หรือ Push เข้ากิ่งหลัก จะถูกตรวจสอบโครงสร้างพื้นฐานอัตโนมัติผ่าน GitHub Actions Workflow ที่ `.github/workflows/infra-ci.yml`:
+
+```mermaid
+graph LR
+    PR[Pull Request Trigger] --> Compose[Docker Compose Config Check]
+    PR --> Format[Terraform Format Check]
+    Format --> Validate[Terraform Validate]
+    Validate --> Security[Checkov Vulnerability Scan]
+    Security --> Merge[Merge Allowed]
+```
+
+### การสั่งรันคำสั่งตรวจสอบด้วยตนเอง (Local Linting & Validation)
+
+```bash
+# 1. ตรวจสอบความถูกต้องของ Docker Compose Configuration
+docker compose -f infra/docker/docker-compose.yml config --quiet
+
+# 2. ตรวจสอบการจัดฟอร์แมตไฟล์ Terraform
+terraform fmt -check -recursive infra/terraform
+
+# 3. ตรวจสอบความถูกต้องของไวยากรณ์ Terraform (Dev Environment)
+cd infra/terraform/environments/dev
+terraform init -backend=false
+terraform validate
+```
+
+---
+
+## 🧹 การหยุดการทำงานและการล้างข้อมูล (Cleanup Commands)
+
+```bash
+cd infra
+
+# หยุดการทำงานของ Containers ทั้งหมด
+docker compose -f docker/docker-compose.yml down
+
+# หยุดเฉพาะบางบริการ (เช่น backend และ frontend)
+docker compose -f docker/docker-compose.yml stop backend frontend
+
+# หยุดการทำงานและลบ Volume ฐานข้อมูล (Reset Data ทั้งหมดให้เริ่มต้นใหม่)
+docker compose -f docker/docker-compose.yml down -v
+```

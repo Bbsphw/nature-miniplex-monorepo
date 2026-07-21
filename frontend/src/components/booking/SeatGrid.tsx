@@ -1,24 +1,27 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import apiClient from '@/lib/axios';
 import { useBookingStore } from '@/store/useBookingStore';
 import { SeatButton } from './SeatButton';
 import type { SeatStatus } from '@/types/api';
-import { Loader2, Tv, Info, AlertTriangle, X } from 'lucide-react';
+import { Loader2, Tv, Info, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { toast } from 'sonner';
+import { toast } from '@/store/useToastStore';
+import { maskPhoneNumber } from '@/lib/utils';
 
 interface SeatGridProps {
   seats: SeatStatus[];
   isLoading: boolean;
   showtimeId?: number;
   failedSeatId?: number | null;
+  isLocked?: boolean;
 }
 
-export function SeatGrid({ seats, isLoading, showtimeId, failedSeatId }: SeatGridProps) {
+export function SeatGrid({ seats, isLoading, showtimeId, failedSeatId, isLocked }: SeatGridProps) {
   const queryClient = useQueryClient();
   const selectedSeats = useBookingStore((state) => state.selectedSeats);
   const toggleSeat = useBookingStore((state) => state.toggleSeat);
@@ -30,6 +33,13 @@ export function SeatGrid({ seats, isLoading, showtimeId, failedSeatId }: SeatGri
 
   const handleConfirmCancel = async () => {
     if (!cancelingSeat || !showtimeId) return;
+
+    if (isLocked) {
+      toast.warning('รอบฉายนี้ถูกล็อคโดยผู้ดูแลระบบ ไม่เปิดให้ทำรายการจองหรือยกเลิกตั๋ว');
+      setCancelingSeat(null);
+      return;
+    }
+
     if (!cancelPhone) {
       toast.error('กรุณากรอกเบอร์โทรศัพท์ที่ใช้จองเพื่อยืนยัน');
       return;
@@ -47,8 +57,10 @@ export function SeatGrid({ seats, isLoading, showtimeId, failedSeatId }: SeatGri
       void queryClient.invalidateQueries({ queryKey: ['showtime-seats'] });
       setCancelingSeat(null);
       setCancelPhone('');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'เบอร์โทรศัพท์ไม่ตรงกับผู้จองที่นั่งนี้ ไม่สามารถยกเลิกได้');
+    } catch (err: unknown) {
+      const data = axios.isAxiosError(err) ? (err.response?.data as { detail?: string; message?: string; title?: string }) : undefined;
+      const message = data?.detail || data?.message || data?.title;
+      toast.error(message ?? 'เกิดข้อผิดพลาดในการยกเลิกรายการจอง');
     } finally {
       setCancelLoading(false);
     }
@@ -126,6 +138,10 @@ export function SeatGrid({ seats, isLoading, showtimeId, failedSeatId }: SeatGri
                     isSelected={selectedSeats.includes(seat.seatId)}
                     onToggle={toggleSeat}
                     onCancelSeat={(s) => {
+                      if (isLocked) {
+                        toast.warning('รอบฉายนี้ถูกล็อคโดยผู้ดูแลระบบ ไม่เปิดให้ทำรายการจองหรือยกเลิกตั๋ว');
+                        return;
+                      }
                       setCancelingSeat(s);
                       setCancelPhone('');
                     }}
@@ -158,24 +174,31 @@ export function SeatGrid({ seats, isLoading, showtimeId, failedSeatId }: SeatGri
         </div>
       </div>
 
-      {/* SRS Cancellation Modal */}
+      {/* SRS Cancellation Modal with Security Verification */}
       <Dialog open={Boolean(cancelingSeat)} onOpenChange={(open) => !open && setCancelingSeat(null)}>
         <DialogContent className="bg-surface-elevated border-surface-border text-white sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
-              ยกเลิกการจองตั๋ว — ที่นั่ง {cancelingSeat?.columnName}{cancelingSeat?.rowName}
+              ยกเลิกการจอง — ที่นั่ง {cancelingSeat?.columnName}{cancelingSeat?.rowName}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-3">
+            <div className="p-3 rounded-xl bg-gray-800/80 border border-gray-700 text-xs space-y-1">
+              <span className="text-gray-400 block">ผู้จองตั๋วนี้ (Masked):</span>
+              <span className="font-mono font-bold text-brand-red text-sm">
+                {cancelingSeat?.bookerPhone ? maskPhoneNumber(cancelingSeat.bookerPhone) : 'จองแล้ว'}
+              </span>
+            </div>
+
             <p className="text-xs text-muted-foreground leading-relaxed">
-              ตามข้อกำหนด SRS: การยกเลิกการจองจะต้องระบุเบอร์โทรศัพท์ที่ใช้จองให้ตรงกันเท่านั้น หากระบุถูกต้อง ที่นั่งนี้จะถูกคืนเป็นที่นั่งว่างทันที
+              ตามข้อกำหนด SRS: กรอกเบอร์โทรศัพท์แบบเต็ม 10 หลักของผู้จองเพื่อยืนยันความเป็นเจ้าของและยกเลิกที่นั่งนี้
             </p>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-white">
-                กรอกเบอร์โทรศัพท์ของผู้จองเพื่อยืนยัน:
+                กรอกเบอร์โทรศัพท์ของผู้จองแบบเต็ม (10 หลัก):
               </label>
               <Input
                 type="tel"

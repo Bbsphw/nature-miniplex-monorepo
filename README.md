@@ -1,6 +1,6 @@
 # Nature MiniPlex Monorepo 🎬
 
-![Next.js](https://img.shields.io/badge/Next.js-14+-black?logo=next.js)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=.net)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript)
 ![SQL Server](https://img.shields.io/badge/SQL_Server-2022-CC292B?logo=microsoft-sql-server)
@@ -138,7 +138,7 @@ cd nature-miniplex-monorepo
 รัน Docker Compose สำหรับบริการ SQL Server 2022:
 ```bash
 cd infra/docker
-docker-compose up -d
+docker compose up -d
 cd ../..
 ```
 
@@ -160,7 +160,7 @@ dotnet test
 cd ..
 ```
 
-### 5. Run Frontend Web App (Next.js 14)
+### 5. Run Frontend Web App (Next.js 16)
 เปิด Terminal หน้าต่างใหม่เพื่อเริ่มรัน Next.js Dev Server:
 ```bash
 cd frontend

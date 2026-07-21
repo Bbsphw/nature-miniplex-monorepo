@@ -92,9 +92,9 @@ infra/
 > รันเฉพาะ Database (SQL Server) และ Mail Server (Mailpit) ใน Container แล้วเปิดรัน Backend (`dotnet run`) และ Frontend (`pnpm dev`) บนเครื่องของคุณเพื่อความรวดเร็วในการ Debug
 
 ```bash
-cd infra
-cp .env.example .env
-docker compose -f docker/docker-compose.yml up -d sqlserver mailpit
+cd infra/docker
+cp ../.env.example .env 2>/dev/null || true
+docker compose up -d sqlserver mailpit
 ```
 
 ---
@@ -103,19 +103,19 @@ docker compose -f docker/docker-compose.yml up -d sqlserver mailpit
 > **เลือกรันเฉพาะ Container ที่ต้องการทดสอบ:**
 
 ```bash
-cd infra
+cd infra/docker
 
 # รันเฉพาะ Database MS SQL Server
-docker compose -f docker/docker-compose.yml up -d sqlserver
+docker compose up -d sqlserver
 
 # รันเฉพาะ Mailpit SMTP Server
-docker compose -f docker/docker-compose.yml up -d mailpit
+docker compose up -d mailpit
 
 # รันเฉพาะ Backend API (.NET 8 Container)
-docker compose -f docker/docker-compose.yml up --build -d backend
+docker compose up --build -d backend
 
 # รันเฉพาะ Frontend Web (Next.js 16 Container)
-docker compose -f docker/docker-compose.yml up --build -d frontend
+docker compose up --build -d frontend
 ```
 
 ---
@@ -125,9 +125,9 @@ docker compose -f docker/docker-compose.yml up --build -d frontend
 > สั่งรันครบทั้งระบบ (`sqlserver` + `mailpit` + `backend` + `frontend`) ในคำสั่งเดียวโดยไม่ต้องติดตั้ง .NET 8 SDK หรือ Node.js บนเครื่องโฮสต์
 
 ```bash
-cd infra
-cp .env.example .env
-docker compose -f docker/docker-compose.yml up --build -d
+cd infra/docker
+cp ../.env.example .env 2>/dev/null || true
+docker compose up --build -d
 ```
 
 ---

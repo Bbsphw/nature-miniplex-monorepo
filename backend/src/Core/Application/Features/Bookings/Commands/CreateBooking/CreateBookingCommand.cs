@@ -19,16 +19,16 @@ public class CreateBookingCommandValidator : AbstractValidator<CreateBookingComm
     public CreateBookingCommandValidator()
     {
         RuleFor(x => x.PhoneNumber)
-            .NotEmpty().WithMessage("Phone number is required.")
-            .Matches(@"^\d{9,10}$").WithMessage("Invalid phone number format.");
+            .NotEmpty().WithMessage("กรุณากรอกเบอร์โทรศัพท์")
+            .Matches(@"^\d{9,10}$").WithMessage("รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็นตัวเลข 9-10 หลัก)");
 
         RuleFor(x => x.Email)
             .EmailAddress().When(x => !string.IsNullOrEmpty(x.Email))
-            .WithMessage("Invalid email format.");
+            .WithMessage("รูปแบบอีเมลไม่ถูกต้อง");
 
         RuleFor(x => x.SeatIds)
-            .NotEmpty().WithMessage("At least one seat must be selected.")
-            .Must(seats => seats.Count <= 4).WithMessage("Maximum of 4 seats allowed per booking.");
+            .NotEmpty().WithMessage("กรุณาเลือกที่นั่งอย่างน้อย 1 ที่นั่ง")
+            .Must(seats => seats.Count <= 4).WithMessage("เลือกได้สูงสุดไม่เกิน 4 ที่นั่งต่อการจอง");
     }
 }
 
@@ -57,15 +57,15 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
     public async Task<Guid> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
     {
         var showtime = await _showtimeRepository.GetByIdAsync(request.ShowtimeId, cancellationToken);
-        if (showtime == null) throw new Exception("Showtime not found.");
-        if (showtime.IsLocked) throw new Exception("Showtime is locked. Cannot book tickets.");
+        if (showtime == null) throw new NatureMiniPlex.Core.Domain.Exceptions.DomainException("ไม่พบรอบฉายที่ระบุ");
+        showtime.EnsureCanBookOrCancel();
 
         var existingBookings = await _bookingRepository.GetBookedSeatsForShowtimeAsync(request.ShowtimeId, cancellationToken);
         
         // Check if any of the requested seats are already booked
         if (request.SeatIds.Any(seatId => existingBookings.Any(b => b.SeatId == seatId)))
         {
-            throw new Exception("One or more selected seats are already booked.");
+            throw new Exception("ที่นั่งบางรายการที่ท่านเลือกถูกจองไปแล้ว กรุณาเลือกรอบหรือที่นั่งใหม่");
         }
 
         // Check if the same phone number has reached the 4-seat limit for this showtime
@@ -77,8 +77,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         if (alreadyBookedCount + request.SeatIds.Count > 4)
         {
             throw new Exception(
-                $"This phone number has already booked {alreadyBookedCount} seat(s) for this showtime. " +
-                $"Cannot book {request.SeatIds.Count} more seat(s). Maximum is 4 per phone number.");
+                $"เบอร์โทรศัพท์นี้เคยจองไปแล้ว {alreadyBookedCount} ที่นั่งในรอบฉายนี้ ไม่สามารถจองเพิ่มอีก {request.SeatIds.Count} ที่นั่งได้ (จำกัดสูงสุด 4 ที่นั่งต่อเบอร์โทรศัพท์ต่อรอบฉาย)");
         }
         
         // Find or create customer

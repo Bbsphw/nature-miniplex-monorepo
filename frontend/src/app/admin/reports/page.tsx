@@ -12,9 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Loader2, BarChart3, TrendingUp, Calendar } from 'lucide-react';
 
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
-}
+import { formatDate } from '@/lib/utils';
 
 function formatCurrency(n: number) {
   return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 0 }).format(n);
@@ -26,7 +24,7 @@ export default function AdminReportsPage() {
 
   const [startDate, setStartDate] = useState(firstOfMonth);
   const [endDate, setEndDate] = useState(today);
-  const [enabled, setEnabled] = useState(false);
+  const [enabled, setEnabled] = useState(true);
   const [queryDates, setQueryDates] = useState({ startDate: firstOfMonth, endDate: today });
 
   const { data: revenues = [], isLoading } = useQuery<DailyRevenue[]>({
@@ -57,18 +55,28 @@ export default function AdminReportsPage() {
 
       <div className="flex flex-wrap gap-4 items-end p-6 rounded-2xl border border-surface-border bg-surface-DEFAULT">
         <div className="space-y-2">
-          <Label className="text-muted-foreground flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5" />วันที่เริ่ม
-          </Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label className="text-muted-foreground flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5" />วันที่เริ่ม
+            </Label>
+            <span className="text-[10px] text-brand-red font-mono font-bold bg-brand-red/10 px-1.5 py-0.5 rounded border border-brand-red/20">
+              {formatDate(startDate)}
+            </span>
+          </div>
           <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-            className="bg-surface-elevated border-surface-border text-white w-40" />
+            className="bg-surface-elevated border-surface-border text-white w-44" />
         </div>
         <div className="space-y-2">
-          <Label className="text-muted-foreground flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5" />วันที่สิ้นสุด
-          </Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label className="text-muted-foreground flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5" />วันที่สิ้นสุด
+            </Label>
+            <span className="text-[10px] text-brand-red font-mono font-bold bg-brand-red/10 px-1.5 py-0.5 rounded border border-brand-red/20">
+              {formatDate(endDate)}
+            </span>
+          </div>
           <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-            className="bg-surface-elevated border-surface-border text-white w-40" />
+            className="bg-surface-elevated border-surface-border text-white w-44" />
         </div>
         <Button onClick={handleFetch} disabled={isLoading}
           className="bg-brand-red hover:bg-brand-red-dark text-white shadow-lg shadow-brand-red/20">
@@ -124,9 +132,12 @@ export default function AdminReportsPage() {
               <Loader2 className="w-8 h-8 animate-spin text-brand-red" />
             </div>
           ) : !revenues.length ? (
-            <div className="flex flex-col items-center py-16 text-muted-foreground gap-3">
-              <BarChart3 className="w-12 h-12" />
-              <p>ไม่มีข้อมูลในช่วงเวลาที่เลือก</p>
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3 text-center">
+              <BarChart3 className="w-12 h-12 opacity-40 text-brand-red" />
+              <p className="text-white font-medium text-base">ไม่พบข้อมูลรายได้ในช่วงวันที่ {formatDate(queryDates.startDate)} ถึง {formatDate(queryDates.endDate)}</p>
+              <p className="text-xs max-w-lg text-muted-foreground leading-relaxed">
+                คำแนะนำ: รายงานรายได้คำนวณจากวันที่ทำรายการจองตั๋ว (Booking Transaction Date) หากเลือกช่วงวันที่ในอนาคตจะยังไม่มีรายการจองเกิดขึ้น กรุณาเลือกช่วงวันที่ที่มีรายการจองเกิดขึ้นจริง (เช่น ตั้งแต่วันเริ่มทำระบบจนถึงปัจจุบัน)
+              </p>
             </div>
           ) : (
             <Table>

@@ -1,6 +1,22 @@
-# dotenv files
+# Environment secret files
 .env
 .env.local
 .env.development
 .env.production
 !.env.example
+
+# Local Terraform files & State
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# OS & Temp files
+.DS_Store
+Thumbs.db

@@ -16,6 +16,11 @@ public class ShowtimeRepository : Repository<Showtime>, IShowtimeRepository
     {
     }
 
+    public override async Task<Showtime?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Showtime>> GetShowtimesByCinemaAndDateAsync(int cinemaId, DateTime date, CancellationToken cancellationToken = default)
     {
         return await _dbSet
@@ -38,9 +43,18 @@ public class ShowtimeRepository : Repository<Showtime>, IShowtimeRepository
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<NatureMiniPlex.Core.Application.DTOs.ShowtimeDto>> GetPagedShowtimesAsync(int? movieId, int? cinemaId, DateTime? date, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<NatureMiniPlex.Core.Application.DTOs.ShowtimeDto>> GetPagedShowtimesAsync(int? movieId, int? cinemaId, DateTime? date, int pageNumber, int pageSize, bool includeInactive = true, CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsNoTracking().Where(s => s.IsActive);
+        var query = _dbSet.AsNoTracking().AsQueryable();
+
+        if (includeInactive)
+        {
+            query = query.IgnoreQueryFilters();
+        }
+        else
+        {
+            query = query.Where(s => s.IsActive);
+        }
 
         if (movieId.HasValue)
             query = query.Where(s => s.MovieId == movieId.Value);

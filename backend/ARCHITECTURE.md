@@ -1,73 +1,139 @@
-# สถาปัตยกรรมระบบ Nature MiniPlex (Backend)
+# 🏛️ Nature MiniPlex - Backend Architecture Specification
 
-[⬅️ กลับหน้า Backend](./README.md) | [🏠 กลับสู่หน้าหลัก](../README.md)
-โครงสร้างโค้ดส่วนของ Backend ถูกออกแบบและพัฒนาตามหลักการของ **Clean Architecture** เพื่อช่วยให้ระบบมีความยืดหยุ่นสูง ง่ายต่อการทดสอบ (Testable) และไม่มีการยึดติดกันระหว่างเลเยอร์ต่างๆ (Decoupled)
+[⬅️ กลับสู่ Backend README](./README.md) | [📚 API Documentation](./API_DOCS.md)
+
+เอกสารฉบับนี้อธิบายรายละเอียดเชิงลึกเกี่ยวกับการออกแบบสถาปัตยกรรม (System Architecture Design) ของระบบ **Nature MiniPlex Backend** เพื่อตอบโจทย์ด้าน **Data Consistency**, **Zero Double-Booking Guarantee**, **High Performance**, และ **Clean Architecture Principles**
 
 ---
 
-## แผนภาพโครงสร้างโปรเจกต์ (Directory Structure)
+## 1. 🏗️ สถาปัตยกรรมระดับภาพรวม (Clean Architecture Overview)
+
+ระบบแบ่งออกเป็น 4 Layer หลักตามหลักการ **Separation of Concerns** และ **Dependency Inversion Principle (DIP)**:
 
 ```text
-backend/src/
-├── Core/                              # 1. เลเยอร์หลักที่เป็นศูนย์รวมธุรกิจ (Core Layer)
-│   ├── Domain/                        # ภาษากลางและข้อมูลหลักของธุรกิจ
-│   │   ├── Entities/                  # คลาสโมเดลข้อมูลจริง (เช่น Movie.cs, Booking.cs)
-│   │   └── NatureMiniPlex.Domain.csproj
-│   └── Application/                   # กฎและกระบวนการทำงานของระบบ (Use Cases)
-│       ├── Interfaces/                # ตัวกำหนดพฤติกรรม (เช่น IMovieRepository, IBookingService)
-│       ├── DTOs/                      # คลาสที่ใช้แลกเปลี่ยนข้อมูล
-│       └── NatureMiniPlex.Application.csproj
-│
-├── Infrastructure/                    # 2. เลเยอร์เชื่อมต่อระบบภายนอก (Infrastructure Layer)
-│   ├── Persistence/                   # การตั้งค่าฐานข้อมูล, DbContext และ Migration
-│   │   └── ApplicationDbContext.cs    
-│   ├── Repositories/                  # การเขียนโค้ดเพื่อดึง/บันทึกข้อมูลจริงตาม Interface ใน Application
-│   └── NatureMiniPlex.Infrastructure.csproj
-│
-└── API/                               # 3. เลเยอร์ส่วนหน้าสำหรับรับ Request (Presentation/API Layer)
-    ├── Controllers/                   # คลาสควบคุมปลายทาง HTTP (API Endpoints)
-    ├── Middlewares/                   # ตัวกรอง Request/Response
-    ├── Program.cs                     # จุดเริ่มต้นโปรแกรมและ Dependency Injection
-    └── NatureMiniPlex.API.csproj
+                     +-----------------------------------+
+                     |          API / Presentation       |
+                     |  (Controllers, Middlewares, Host) |
+                     +-----------------+-----------------+
+                                       |
+                                       v
+                     +-----------------------------------+
+                     |         Application Layer         |
+                     |  (CQRS Commands/Queries, DTOs)    |
+                     +--------+-----------------+--------+
+                              |                 |
+                              v                 v
+            +-------------------+     +--------------------+
+            |   Domain Layer    |     | Infrastructure Layer|
+            | (Entities, Enums) | <---| (EF Core, Auth, DB)|
+            +-------------------+     +--------------------+
 ```
 
+### รายละเอียดแต่ละ Layer:
+
+1. **Domain Layer (`Core/Domain`)**: 
+   - เลเยอร์ศูนย์กลางที่ไม่มี Dependency ไปยังภายนอก (Zero External Dependencies)
+   - ประกอบด้วย Domain Entities (`Booking`, `BookingItem`, `Showtime`, `Movie`, `Customer`), Business Exceptions (`DomainException`), และ Enums (`BookingStatus`, `ItemStatus`, `UserRole`)
+   - บรรจุ Rich Domain Rules (เช่น `showtime.EnsureCanBookOrCancel()`)
+
+2. **Application Layer (`Core/Application`)**:
+   - บรรจุ Use Cases ของระบบผ่าน **CQRS Pattern** ด้วย **MediatR**
+   - แยก **Commands** (การแก้ไขข้อมูล เช่น `CreateBookingCommand`, `CancelBookingCommand`) ออกจาก **Queries** (การอ่านข้อมูล เช่น `GetShowtimeSeatsQuery`)
+   - ใช้ **FluentValidation** ในการตรวจประเมิน Input Validation ก่อนเข้าสู่ Handler
+   - นิยาม **Interfaces** สำหรับ Repository และ External Services (`IBookingRepository`, `IUnitOfWork`, `IEmailService`)
+
+3. **Infrastructure Layer (`Infrastructure`)**:
+   - พัฒนาส่วน Data Persistence ด้วย **Entity Framework Core 8** และ **SQL Server**
+   - Implement Repositories ตาม Interfaces ที่ Application Layer กำหนด
+   - จัดการ Authentication (JWT Token Generation, Password Hashing ด้วย BCrypt) และ External Integrations (SMTP Email Service)
+
+4. **API Layer (`API`)**:
+   - เลเยอร์ Presentation ทางฝั่ง REST API Endpoints
+   - ทำหน้าที่รับ HTTP Request, Invoke MediatR Pipeline, และส่ง HTTP Response คืนแก่ Client
+   - มี **Global Exception Handling Middleware** สำหรับแปลง Unhandled Exceptions เป็นฟอร์แมต **RFC 7807 (Problem Details)**
+
 ---
 
-## แนวทางปฏิบัติที่สำคัญ (Key Practices)
+## 2. ⚡ กลยุทธ์การป้องกันการจองซ้ำ (Concurrency Lock & Zero Double-Booking Strategy)
 
-### 1. Dependency Injection (DI)
-- การสร้าง Object หรือเรียกใช้ Service ต่างๆ จะต้องทำผ่าน Constructor Injection เสมอ ห้ามทำการ `new` Service ขึ้นมาเองโดยเด็ดขาด
-- การ Register Service จะทำที่ `Program.cs` (เลเยอร์ API) เท่านั้น 
-- เพื่อความสะอาดของโค้ด แนะนำให้สร้าง Extension Methods (เช่น `services.AddInfrastructureLayer()`) ในแต่ละโปรเจกต์ แล้วค่อยนำมาเรียกใช้ที่ `Program.cs` ครั้งเดียว
+การจองตั๋วภาพยนตร์ในระบบ Nature MiniPlex ต้องรองรับ High Traffic Concurrent Requests ในกรณีภาพยนตร์ตั๋วเต็มเร็ว (Flash Sales) โดยระบบใช้ **Multi-Layer Concurrency Control Strategy**:
 
-### 2. Error Handling & API Responses
-- **Global Exception Handling**: ห้ามใช้ `try-catch` ซ้ำซ้อนใน Controllers ระบบจะมี Global Exception Middleware เพื่อจับ Error ที่หลุดออกมาและแปลงเป็นรูปแบบมาตรฐานโดยอัตโนมัติ
-- **ProblemDetails**: การ Return Error จาก API จะต้องอยู่ในฟอร์แมต **RFC 7807 (Problem Details for HTTP APIs)** เสมอ ตัวอย่างเช่น:
-  ```json
-  {
-    "type": "https://tools.ietf.org/html/rfc7231#section-6.5.8",
-    "title": "Conflict",
-    "status": 409,
-    "detail": "The selected seat is already booked."
-  }
+```text
+Client Request (User A & User B จอง Seat 25 พร้อมกัน)
+       |
+       v
+Application Level Check (Validation in Handler)
+       |
+       v
+DB Transaction (Isolation Level: Read Committed)
+       |
+       v
+Database Constraint: Filtered Unique Index [IX_BookingItem_Showtime_Seat_Active]
+       |
+       +---> User A: Success (Row Saved) -> 201 Created
+       |
+       +---> User B: DB Unique Violation -> Exception Handling Middleware -> 409 Conflict (ProblemDetails)
+```
+
+### 2.1 Database Level Protection (Filtered Unique Index)
+ใน SQL Server เครือข่าย Database Constraint จะเป็นตัวตัดสินขั้นสุดท้าย (Ultimate Source of Truth) เพื่อการันตี Atomic Consistency:
+
+```csharp
+// Infrastructure/Persistence/ApplicationDbContext.cs
+builder.Entity<BookingItem>()
+    .HasIndex(bi => new { bi.ShowtimeId, bi.SeatId })
+    .HasDatabaseName("IX_BookingItem_Showtime_Seat_Active")
+    .IsUnique()
+    .HasFilter("[ItemStatus] = 1"); // ItemStatus.Active = 1
+```
+
+- **ประโยชน์:** หากมี 2 Transactions พยายาม Insert `BookingItem` สำหรับ `ShowtimeId` และ `SeatId` เดียวกันพร้อมกัน DB Engine จะยอมให้เพียง 1 Transaction สำเร็จ ส่วนอีก Transaction จะถูก Abort ทันทีด้วย `SqlException (Error Code 2601/2627)`
+
+### 2.2 Transaction & Pessimistic/Optimistic Locking Options
+- **Optimistic Concurrency:** ใช้ Filtered Unique Index ร่วมกับ Catching `DbUpdateException` เพื่อให้เหมาะกับ Write Throughput สูงโดยไม่ต้อง Hold DB Lock เป็นเวลานาน
+- **Pessimistic Locking (Alternative for High-Contention):** ในกรณีที่ต้องการ Lock ที่นั่งล่วงหน้า สามารถใช้ EF Core `FromSqlRaw` ร่วมกับ `WITH (UPDLOCK, HOLDLOCK)`:
+  ```csharp
+  var seat = await _dbContext.Seats
+      .FromSqlRaw("SELECT * FROM Seats WITH (UPDLOCK, HOLDLOCK) WHERE Id = {0}", seatId)
+      .FirstOrDefaultAsync(cancellationToken);
   ```
 
-### 3. ห้ามมี EF Core / SQL Logic ใน Core หรือ API
-- ห้ามทำการ `using Microsoft.EntityFrameworkCore` ในเลเยอร์ `Core` เด็ดขาด ทุกการเข้าถึงข้อมูลต้องทำผ่าน `Interfaces` ที่ Application เป็นคนกำหนด (Repository Pattern)
+---
 
-### 4. การจัดการ Authentication (JWT)
-- ระบบใช้ **JWT (JSON Web Token)** สำหรับการยืนยันตัวตน 
-- การสร้าง Token และ Hashing รหัสผ่าน จะทำใน Infrastructure Layer (`src/Infrastructure/Authentication/`) และถูกเรียกใช้ผ่าน Interface จาก Application Layer
-- API Endpoints จะถูกป้องกันด้วย `[Authorize]` Attribute และจัดการสิทธิ์ (Role-based access control) ผ่าน Policies
+## 3. 🛡️ การรักษาความปลอดภัยและสิทธิ์การใช้งาน (Security & Auth Architecture)
+
+1. **Authentication Flow:**
+   - ผู้ใช้ล็อกอินผ่าน `POST /api/auth/login` ส่ง `Username` และ `Password`
+   - ระบบตรวจสอบ Credentials ด้วย **BCrypt Password Hashing**
+   - คืนค่า **JWT Access Token** (HS256 Signed) ที่มี Claims: `sub` (UserId), `unique_name` (Username), และ `role` (`Owner` หรือ `Staff`)
+
+2. **Role-Based Access Control (RBAC):**
+   - กำหนด Policy และ Attribute `[Authorize(Roles = "Owner")]` ใน Controllers สำหรับ Endpoints ที่ต้องการสิทธิ์ระดับผู้บริหาร (เช่น การเพิ่มภาพยนตร์, การดูรายงานรายได้)
+   - Endpoints ฝั่ง Staff (เช่น การจองตั๋ว, การยกเลิกตั๋ว) ถูกจำกัดการเข้าถึงตามสิทธิ์ที่เหมาะสม
+
+3. **Data Protection & Sanitization:**
+   - ซ่อนข้อมูล sensitive data และไม่ส่ง Stack Trace หลุดไปยัง HTTP Response ในสภาพแวดล้อม Production
+   - ป้องกัน SQL Injection 100% ด้วย EF Core Parameterized Queries
 
 ---
 
-## การจัดการ Environment และ Secrets (Environment & Secrets Management)
+## 4. 🚀 Caching & Performance Optimization Strategy
 
-เพื่อให้เป็นไปตาม Best Practice และหลักการของ **Twelve-Factor App** ระบบได้แยกการตั้งค่าที่อาจเปลี่ยนไปตามสภาพแวดล้อม (Environment) และข้อมูลความลับ (Secrets) ออกจากโค้ดโดยเด็ดขาด โดยมีการจัดการไฟล์ดังนี้:
+1. **Movie Schedule & Showtime Caching:**
+   - ข้อมูลรอบฉายภาพยนตร์ (`GET /api/movies`, `GET /api/showtimes`) เป็น read-heavy data ที่เปลี่ยนไม่บ่อย
+   - ใช้ **IMemoryCache** หรือ **Redis Distributed Cache** พร้อมระบบ **Cache Invalidation** (ล้าง Cache เมื่อมีการเพิ่ม/แก้ไขภาพยนตร์หรือรอบฉาย)
+2. **Database Query Optimization:**
+   - ใช้ `AsNoTracking()` สำหรับ Query Operations ทั้งหมด เพื่อลด Overhead ในการทำ EF Core Change Tracker
+   - ทำ Database Indexing บน Foreign Keys (`ShowtimeId`, `CustomerId`, `MovieId`) และ Field ที่ใช้ค้นหาบ่อย (`PhoneNumber`)
+3. **Pagination:**
+   - บังคับใช้ Server-Side Pagination (`pageNumber`, `pageSize`) ใน List Endpoints เช่น `GET /api/bookings` เพื่อป้องกันการโหลด Memory เกินขีดจำกัด (OOM)
 
-1. **ไฟล์ `.env.example` (Template)**: เป็นเทมเพลตที่อนุญาตให้ Commit ลง Git ได้ (บอกโครงสร้างตัวแปร)
-2. **ไฟล์ `.env` (Default Environment)**: เป็นตั้งค่าเริ่มต้น มักไม่แนะนำให้ Commit
-3. **ไฟล์ `.env.local` (Local Override)**: เป็นตั้งค่าเฉพาะเครื่องของแต่ละคน **ห้าม Commit ลง Git โดยเด็ดขาด** (ถูก Ignore ไว้แล้ว)
+---
 
-*หมายเหตุ: ใน .NET สามารถโหลดค่าจาก `.env` เข้าสู่ `IConfiguration` ได้ผ่านไลบรารีอย่าง `DotNetEnv` หรือดึงมาจาก Docker Compose `environment:` ตรงๆ*
+## 5. 📊 Logging & Audit Trail Strategy
+
+1. **Centralized Logging (Serilog):**
+   - ใช้ **Serilog** บันทึก Log รูปแบบ **Structured JSON** ไปยัง Console, File, หรือ Log Management System (เช่น Seq, ELK Stack)
+   - แนบ **Correlation ID** ในทุก HTTP Request เพื่อให้ Trace Transaction ข้าม Service ได้ง่าย
+2. **Action Logging (Audit Trail):**
+   - บันทึกประวัติการทำรายการสำคัญของ Staff/Owner ลงตาราง `ActionLogs` ใน Database (เช่น การสร้างรอบฉาย, การยกเลิกตั๋ว) เพื่อการตรวจสอบย้อนหลัง (Auditing)

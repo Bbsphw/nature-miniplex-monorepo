@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
+import { toast } from '@/store/useToastStore';
 import axios from 'axios';
 import { useCreateBooking } from '@/features/bookings/hooks/useCreateBooking';
 import { useBookingStore } from '@/store/useBookingStore';
@@ -16,10 +16,19 @@ interface BookingFormProps {
   showtimeId: number;
   ticketPrice: number;
   seats: SeatStatus[];
+  isExpired?: boolean;
+  isLocked?: boolean;
   onBookingFailed?: (seatId: number | null) => void;
 }
 
-export function BookingForm({ showtimeId, ticketPrice, seats, onBookingFailed }: BookingFormProps) {
+export function BookingForm({
+  showtimeId,
+  ticketPrice,
+  seats,
+  isExpired,
+  isLocked,
+  onBookingFailed,
+}: BookingFormProps) {
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [email, setEmail] = useState('');
@@ -40,13 +49,24 @@ export function BookingForm({ showtimeId, ticketPrice, seats, onBookingFailed }:
   };
 
   const validateEmail = (value: string): string => {
-    if (!value) return ''; // Optional
+    if (!value) return '';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'รูปแบบอีเมลไม่ถูกต้อง';
     return '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isExpired) {
+      toast.error('ไม่สามารถจองได้: รอบฉายนี้ผ่านไปแล้ว');
+      return;
+    }
+
+    if (isLocked) {
+      toast.error('ไม่สามารถจองได้: รอบฉายนี้ถูกล็อคอยู่');
+      return;
+    }
+
     const pErr = validatePhone(phone);
     const eErr = validateEmail(email);
     if (pErr) setPhoneError(pErr);
@@ -70,30 +90,46 @@ export function BookingForm({ showtimeId, ticketPrice, seats, onBookingFailed }:
         seatIds: selectedSeats,
       });
       clearSeats();
-      toast.success('จองตั๋วสำเร็จ! กำลังพาไปหน้ายืนยัน...');
+      toast.success('จองตั๋วภาพยนตร์สำเร็จ!', {
+        description: 'กำลังพาไปหน้าตั๋ว E-Ticket ของคุณ...',
+      });
       router.push(`/booking-confirmation/${bookingId}`);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
+        const data = error.response?.data;
+
         if (status === 409 || status === 400) {
-          // Fire optimistic UI revert/animation
           if (onBookingFailed) {
-             // We'll shake the first selected seat, or we could shake all by passing them individually.
-             // For now, let's pass the first seat id to shake it, to draw attention.
-             onBookingFailed(selectedSeats[0] || null);
+            onBookingFailed(selectedSeats[0] || null);
           }
-          // The EXACT error message required by the SRS
-          toast.error('ที่นั่งนี้เพิ่งถูกจองไป กรุณาเลือกที่นั่งใหม่', {
-             style: { backgroundColor: '#dc2626', color: '#fff', border: 'none' }
-          });
+          const serverMessage = data?.detail || data?.message || 'ที่นั่งนี้เพิ่งถูกจองไป กรุณาเลือกที่นั่งใหม่';
+          toast.error(serverMessage);
+        } else if (status === 422) {
+          const serverMessage = data?.detail || data?.message || 'ไม่สามารถทำการจองได้ตามเงื่อนไขของระบบ';
+          toast.error(serverMessage);
         } else {
-          toast.error(error.response?.data?.message ?? 'เกิดข้อผิดพลาด กรุณาลองอีกครั้ง');
+          const serverMessage = data?.detail || data?.message || 'เกิดข้อผิดพลาดในการจองตั๋ว กรุณาลองอีกครั้ง';
+          toast.error(serverMessage);
         }
       } else {
         toast.error('เกิดข้อผิดพลาด กรุณาลองอีกครั้ง');
       }
     }
   };
+
+  if (isExpired || isLocked) {
+    return (
+      <div className="flex items-center gap-3 p-4 rounded-2xl border border-red-500/30 bg-red-950/40 text-red-200 text-sm shadow-xl backdrop-blur-md">
+        <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-400" />
+        <span>
+          {isExpired
+            ? 'รอบฉายนี้ได้เริ่มขึ้นหรือผ่านไปแล้ว ไม่สามารถทำรายการจองตั๋วได้'
+            : 'รอบฉายนี้ถูกล็อคโดยผู้ดูแลระบบ ไม่เปิดให้ทำรายการจองตั๋ว'}
+        </span>
+      </div>
+    );
+  }
 
   if (selectedSeats.length === 0) {
     return (

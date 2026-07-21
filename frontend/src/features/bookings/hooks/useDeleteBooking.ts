@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
-import { toast } from 'sonner';
+import { toast } from '@/store/useToastStore';
 import axios from 'axios';
 
 export function useDeleteBooking() {
@@ -12,7 +12,7 @@ export function useDeleteBooking() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      toast.success('ยกเลิกการจองสำเร็จ');
+      toast.success('ยกเลิกการจองเรียบร้อยแล้ว');
     },
     onError: (error) => {
       if (axios.isAxiosError(error)) {

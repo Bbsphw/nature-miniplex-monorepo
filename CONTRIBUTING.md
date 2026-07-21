@@ -1,69 +1,137 @@
-# Contributing to Nature MiniPlex
+# Contributing to Nature MiniPlex Monorepo
 
 [⬅️ กลับสู่หน้าหลัก (Back to Root)](./README.md)
-ก่อนอื่น ทีมงานขอขอบคุณที่คุณสนใจเข้ามาร่วม Contribute ให้กับโปรเจกต์ Nature MiniPlex ครับ!
 
-เนื้อหาด้านล่างนี้คือ Guidelines สำหรับการร่วมพัฒนา Repository นี้ กฎเกณฑ์เหล่านี้เป็นแนวทางปฏิบัติ (Guidelines) เพื่อให้ทีมสามารถส่งมอบโค้ดที่มีคุณภาพสูงได้อย่างต่อเนื่อง หากมีข้อเสนอแนะสามารถเปิด Pull Request เสนอปรับปรุงเอกสารนี้ได้เสมอครับ
+ทีมงานขอขอบคุณเป็นอย่างยิ่งที่คุณสนใจเข้ามาร่วมพัฒนาโปรเจกต์ **Nature MiniPlex**! 
+
+เอกสารฉบับนี้กำหนด **Guidelines, Git Flow Strategies, Coding Standards และ PR Review Checklists** เพื่อให้ทีมนักพัฒนาสามารถทำงานร่วมกันได้อย่างเรียบร้อย และรักษาคุณภาพของซอฟต์แวร์ให้อยู่ในระดับสูงเสมอ
 
 ---
 
-## 🌊 กระบวนการพัฒนา (Git Flow Workflow)
+## 📋 สารบัญ (Table of Contents)
 
-เราใช้มาตรฐาน **Git Flow** ในการพัฒนาอย่างเคร่งครัด เพื่อให้การออก Release เป็นไปอย่างราบรื่นและควบคุมคุณภาพได้ดีที่สุด
+1. [กระบวนการพัฒนาและกิ่งโค้ด (Git Flow Workflow)](#1-กระบวนการพัฒนาและกิ่งโค้ด-git-flow-workflow)
+2. [รูปแบบการตั้งชื่อ Branch (Branch Naming Conventions)](#2-รูปแบบการตั้งชื่อ-branch-branch-naming-conventions)
+3. [การเขียน Commit Messages (Conventional Commits)](#3-การเขียน-commit-messages-conventional-commits)
+4. [ข้อกำหนดและสถาปัตยกรรมระดับ Monorepo (Monorepo Guidelines)](#4-ข้อกำหนดและสถาปัตยกรรมระดับ-monorepo-monorepo-guidelines)
+   - [4.1 Backend Guidelines (.NET 8 Clean Architecture)](#41-backend-guidelines-net-8-clean-architecture)
+   - [4.2 Frontend Guidelines (Next.js 14 App Router & TypeScript)](#42-frontend-guidelines-nextjs-14-app-router--typescript)
+   - [4.3 Infrastructure & IaC Guidelines (Docker & Terraform)](#43-infrastructure--iac-guidelines-docker--terraform)
+5. [ขั้นตอนการเปิด Pull Requests (PR Workflow & Checklist)](#5-ขั้นตอนการเปิด-pull-requests-pr-workflow--checklist)
+6. [การรับความช่วยเหลือ (Getting Support)](#6-การรับความช่วยเหลือ-getting-support)
 
-### 1. โครงสร้างกิ่ง (Branching Strategy)
-- `main`: กิ่งหลักที่เก็บโค้ดสำหรับ Production (ห้าม Push โดยตรง) โค้ดในกิ่งนี้ต้องพร้อม Deploy เสมอ
-- `develop`: กิ่งหลักสำหรับการพัฒนาฟีเจอร์ใหม่ (ห้าม Push โดยตรง) โค้ดจากกิ่งนี้จะถูกนำไปทดสอบก่อนขึ้น `main`
-- `feature/*`: สำหรับพัฒนาฟีเจอร์ใหม่ (แตกกิ่งมาจาก `develop`)
-- `release/*`: สำหรับเตรียมความพร้อมก่อนขึ้น Production (แตกกิ่งมาจาก `develop`)
-- `hotfix/*`: สำหรับแก้บั๊กฉุกเฉินบน Production (แตกกิ่งมาจาก `main`)
+---
 
-### 2. การตั้งชื่อ Branch (Branch Naming)
-รูปแบบที่กำหนด: `<type>/<issue-number>-<short-description>`
-- สำหรับฟีเจอร์ใหม่: `feature/123-add-booking-endpoint`
-- สำหรับแก้บั๊ก: `bugfix/124-fix-seat-race-condition`
-- สำหรับแก้ปัญหาเร่งด่วน: `hotfix/125-urgent-db-crash`
+## 1. กระบวนการพัฒนาและกิ่งโค้ด (Git Flow Workflow)
 
-### 2. การเขียน Commit Messages (Conventional Commits)
-เรายึดมาตรฐานตาม [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) เพื่อให้สามารถทำ Automated Release/Changelog ได้ง่าย
-- `feat:` เมื่อมีการเพิ่มความสามารถหรือหน้าใหม่
-- `fix:` เมื่อมีการแก้ไขบั๊ก
-- `docs:` เมื่อมีการอัปเดตเอกสาร (เช่น README, ARCHITECTURE)
-- `refactor:` เมื่อมีการจัดโครงสร้างโค้ดใหม่โดยไม่กระทบความสามารถเดิม
-- `chore:` สำหรับงานจิปาถะ เช่น อัปเดต dependencies, ตั้งค่าเครื่องมือ
+เรายึดถือมาตรฐาน **Git Flow** ในการพัฒนาอย่างเคร่งครัด เพื่อให้การจัดสรรเวอร์ชันและการออก Release เป็นไปอย่างเสถียร:
 
-*ตัวอย่าง: `feat(api): add JWT authentication for booking endpoint`*
+```
+[ main ] ───────────────┬───────────────────────────────► (Production Releases)
+                        │
+                      [ hotfix/* ]
+                        │
+                        ▼
+[ develop ] ────┬───────────────┬───────────────┬───────► (Integration & Staging)
+                │               │               │
+            [ feature/* ]   [ refactor/* ]  [ release/* ]
+```
 
-### 3. การส่ง Pull Requests (PR)
+- `main`: กิ่งหลักสำหรับโค้ดบน Production (*ห้าม Push โดยตรง*)
+- `develop`: กิ่งหลักสำหรับการรวมฟีเจอร์และรอการทดสอบเพื่อเตรียมออก Release (*ห้าม Push โดยตรง*)
+- `feature/*`: กิ่งสำหรับการพัฒนาฟีเจอร์ใหม่ (แตกออกมาจาก `develop`)
+- `bugfix/*`: กิ่งสำหรับการแก้ไขบั๊กทั่วไป (แตกออกมาจาก `develop`)
+- `refactor/*`: กิ่งสำหรับการปรับปรุงโครงสร้างโค้ดหรือประสิทธิภาพ (แตกออกมาจาก `develop`)
+- `docs/*`: กิ่งสำหรับการอัปเดตเอกสารระบบ (แตกออกมาจาก `develop`)
+- `release/*`: กิ่งสำหรับเตรียมออก Release และทดสอบ QA ขั้นสุดท้าย (แตกออกมาจาก `develop`)
+- `hotfix/*`: กิ่งสำหรับแก้ปัญหาร้ายแรงฉุกเฉินบน Production (แตกออกมาจาก `main`)
+
+---
+
+## 2. รูปแบบการตั้งชื่อ Branch (Branch Naming Conventions)
+
+การตั้งชื่อ Branch ต้องปฏิบัติตามโครงสร้าง: `<type>/<issue-or-scope>-<short-description>` โดยใช้ตัวอักษรภาษาอังกฤษพิมพ์เล็กและคั่นด้วยเครื่องหมาย dash (`-`):
+
+- **ฟีเจอร์ใหม่:** `feature/seat-selection-ui` หรือ `feature/102-admin-movie-crud`
+- **การแก้ไขบั๊ก:** `bugfix/seat-race-condition` หรือ `bugfix/105-jwt-auth-expiry`
+- **การปรับแต่งโครงสร้าง:** `refactor/clean-architecture-exceptions` หรือ `refactor/frontend-toast-store`
+- **เอกสาร:** `docs/update-srs-spec`
+- **การแก้ไขฉุกเฉิน:** `hotfix/db-connection-leak`
+
+---
+
+## 3. การเขียน Commit Messages (Conventional Commits)
+
+เรายึดมาตรฐานตาม [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) เพื่อความเป็นระเบียบและรองรับการสร้าง Changelog อัตโนมัติ:
+
+### รูปแบบ (Format):
+`<type>(<scope>): <short summary in present tense>`
+
+### ประเภทของ Commit (`<type>`):
+- `feat`: เพิ่มความสามารถ ฟีเจอร์ หรือ UI หน้าใหม่
+- `fix`: แก้ไขบั๊กหรือความผิดพลาดของระบบ
+- `docs`: อัปเดตเอกสาร (เช่น README, ARCHITECTURE, SRS)
+- `style`: ปรับแต่งรูปแบบโค้ด ลบ spaces (ไม่กระทบการทำงานของโค้ด)
+- `refactor`: ปรับปรุงโครงสร้างโค้ดโดยไม่เปลี่ยนแปลงพฤติกรรมภายนอก
+- `perf`: การปรับแต่งเพื่อเพิ่มประสิทธิภาพ (Performance Optimization)
+- `test`: เพิ่มเติมหรือแก้ไข Unit Tests / Integration Tests
+- `chore`: งานบำรุงรักษาทั่วไป เช่น อัปเดต Dependencies, ตั้งค่า Docker/CI
+- `ci`: ปรับเปลี่ยนสคริปต์หรือตั้งค่า CI/CD Workflows
+
+### ตัวอย่าง Commit Messages ที่ถูกต้อง:
+```bash
+feat(backend): add CancelBookingBySeat command handler
+feat(frontend): implement useToastStore for global notifications
+fix(concurrency): catch DbUpdateConcurrencyException in BookingRepository
+docs(root): update SRS and system architecture specs to v2.0
+refactor(infra): reorganize docker files into infra/docker directory
+```
+
+---
+
+## 4. ข้อกำหนดและสถาปัตยกรรมระดับ Monorepo (Monorepo Guidelines)
+
+### 4.1 Backend Guidelines (.NET 8 Clean Architecture)
+- **Layer Isolation:** โค้ดใน Domain Layer ห้ามเรียกใช้สิ่งต่าง ๆ จาก Infrastructure หรือ Presentation Layer โดยเด็ดขาด
+- **Domain Exceptions:** เมื่อเกิดข้อผิดพลาดทาง Business Rule ให้โยน Custom Domain Exceptions (เช่น `ConcurrencyException`, `NotFoundException`, `ValidationException`) และปล่อยให้ `ExceptionHandlingMiddleware` แปลงเป็น RFC 7807 ProblemDetails
+- **Thin Controllers & CQRS:** Controller ต้องมีขนาดเล็ก ทำหน้าที่รับ Request และส่งต่อให้ CQRS Handlers หรือ Application Layer เท่านั้น
+- **Asynchronous Execution:** บังคับใช้ `async/await` ร่วมกับ `CancellationToken` ใน Data Access Layer ทุกจุด
+
+### 4.2 Frontend Guidelines (Next.js 14 App Router & TypeScript)
+- **Strict TypeScript:** ห้ามใช้ Type `any` หรือ `@ts-ignore` ในโค้ดที่จะส่งเข้า `main`/`develop`
+- **State Management Rules:**
+  - ใช้ **Zustand** สำหรับ Client/Transient UI State (`useBookingStore`, `useToastStore`, `useConfirmStore`)
+  - ใช้ **React Query** สำหรับ Server State Data Fetching & Mutations
+- **Component Design:** สร้าง Atomic Components ที่มีหน้าที่ชัดเจน ไม่เขียนโค้ดซ้ำซ้อน และใช้ **Tailwind CSS** เป็นมาตรฐานเดียวในการจัด Style
+- **User Feedback:** การกระทำสำคัญหรือข้อผิดพลาดต้องแจ้งเตือนผ่าน `useToastStore` หรือขอคำยืนยันผ่าน `ConfirmModal` เสมอ
+
+### 4.3 Infrastructure & IaC Guidelines (Docker & Terraform)
+- **Secrets Protection:** ห้ามนำ Secrets, Password, API Keys หรือ `.env` ใส่ไว้ใน Docker Image หรือ Git Commit
+- **Multi-stage Docker:** Dockerfile ต้องใช้ Multi-stage Build เพื่อให้ขนาด Container เล็กที่สุดและปลอดภัยบน Production
+- **Terraform Formatting:** รัน `terraform fmt` และ `terraform validate` ก่อนส่ง Commit สำหรับไฟล์ Infrastructure
+
+---
+
+## 5. ขั้นตอนการเปิด Pull Requests (PR Workflow & Checklist)
+
 > [!IMPORTANT]
-> ห้าม Merge โค้ดเข้า `main` ด้วยตัวเองเด็ดขาด ทุกคนต้องผ่านกระบวนการ Code Review อย่างน้อย 1 คนเสมอ
+> ห้ามทำการ Merge โค้ดเข้าสู่ `main` หรือ `develop` โดยไม่ผ่านกระบวนการ Code Review โดยเด็ดขาด ทุก PR ต้องได้รับการอนุมัติ (Approve) จาก Reviewer อย่างน้อย 1 คน
 
-**PR Checklist ที่ต้องทำก่อนขอ Review**:
-- [ ] ทดสอบโค้ดใน Local สำเร็จ (รัน `pnpm dev` หรือ `dotnet run` ไม่เจอ Error)
-- [ ] ไม่มีข้อมูลลับ (Secrets, รหัสผ่าน, `.env.local`) หลุดเข้ามาใน PR นี้
-- [ ] เขียน/อัปเดต Unit Tests สำหรับส่วนที่แก้ไขแล้ว (ถ้ามี)
-- [ ] ทำตาม Coding Standards และผ่านการทำ Linting/Formatting เรียบร้อยแล้ว
-- [ ] อัปเดตเอกสาร (ถ้าโค้ดมีการเปลี่ยนแปลงระดับสถาปัตยกรรม หรือเปลี่ยน API Payload)
-
----
-
-## 📐 มาตรฐานการเขียนโค้ด (Coding Standards)
-
-### Backend (.NET 8 / C#)
-- ทำตามมาตรฐานการเขียน C# ทั่วไป (ใช้ PascalCase สำหรับ Classes/Methods และ camelCase สำหรับตัวแปร Local)
-- ยึดหลักการพัฒนาแบบ **Clean Architecture** อย่างเคร่งครัด หลีกเลี่ยงการเรียกใช้ Infrastructure layers จากฝั่ง Core Domain เด็ดขาด
-- พยายามทำให้ Controllers "Thin" ที่สุด (โค้ดน้อยๆ) Business Logic ทั้งหมดควรอยู่ใน Application หรือ Domain Layers
-- จัดการการทำงานแบบ Asynchronous (`async/await`) อย่างถูกต้องเสมอ เพื่อให้ระบบรองรับการ Scale ได้ดี
-- การ Return HTTP Status ต้องเป็นไปตามมาตรฐาน REST (เช่น `404 Not Found`, `409 Conflict` สำหรับ Race Conditions)
-
-### Frontend (Next.js / TypeScript)
-- ใช้ Functional Components และ React Hooks เป็นหลัก
-- บังคับใช้การทำ **Strict TypeScript Typing** พยายามหลีกเลี่ยงการใช้ Type `any` หรือ `@ts-ignore` 
-- ใช้หลักการ Atomic Design ในการแบ่งส่วน Component พยายามสร้าง Components ที่มีขนาดเล็ก โฟกัสเฉพาะงาน และสามารถนำกลับมา Reuse ได้
-- การจัดการ Data Fetching ฝั่ง Client ให้ใช้ **React Query** และ State ส่วน UI ให้ใช้ **Zustand**
-- สำหรับการทำ Styling ให้ใช้ Utility classes ของ **Tailwind CSS** เป็นมาตรฐานเดียวกัน
+### PR Checklist ที่ผู้เปิด PR ต้องตรวจสอบก่อนส่ง Review:
+- [ ] **Local Verification:** ทดสอบการทำงานในเครื่อง Local เรียบร้อยแล้ว (รัน `dotnet run` และ `pnpm dev` ผ่านโดยไม่เจอ Error)
+- [ ] **No Secrets Leak:** ตรวจสอบว่าไม่มีรหัสผ่าน, Connection String หรือไฟล์ `.env.local` หลุดเข้ามาใน PR
+- [ ] **Automated Tests:** รัน `dotnet test` หรือ Frontend Tests ผ่านทั้งหมด
+- [ ] **Clean Architecture & Strict Types:** โค้ดปฏิบัติตาม Clean Architecture และผ่านการทำ Strict TypeScript Check
+- [ ] **UI & Feedback Verification:** ตรวจสอบการแสดงผล Toast Notification และ Confirm Modal (กรณีแก้ไข UI)
+- [ ] **Documentation Update:** ได้อัปเดตเอกสาร `.md` ที่เกี่ยวข้องหากมีการเปลี่ยนแปลง API Contract, Schema หรือ สถาปัตยกรรมระบบ
 
 ---
 
-## 🙋‍♂️ ต้องการความช่วยเหลือ? (Getting Help)
-หากคุณต้องการความช่วยเหลือหรือมีคำถามเกี่ยวกับสถาปัตยกรรมระบบ (Architecture) สามารถทักหา Technical Lead หรือโพสต์ถามในช่อง Developer Channel ภายในทีมได้เลยครับ
+## 6. การรับความช่วยเหลือ (Getting Support)
+
+หากพบปัญหา มีข้อสงสัยในสถาปัตยกรรมระบบ หรือต้องการปรึกษาการตั้งชื่อ Branch/Commit:
+- โพสต์คำถามในทีมสื่อสารภายใน (Developer Channel)
+- ทักหา **System Architect** หรือ **Technical Lead** ประจำโปรเจกต์ Nature MiniPlex
+
+---
+*Thank you for helping us build a scalable and robust cinema system! 🚀*

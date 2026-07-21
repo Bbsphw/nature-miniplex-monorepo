@@ -5,6 +5,8 @@ import { Providers } from '@/lib/providers';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Toaster } from 'sonner';
+import { ToastContainer } from '@/components/ui/toast';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
 const prompt = Prompt({
   variable: '--font-prompt',
@@ -37,6 +39,8 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
+          <ConfirmModal />
+          <ToastContainer position="bottom-right" />
           <Toaster
             richColors
             position="top-right"

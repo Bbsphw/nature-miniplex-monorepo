@@ -7,7 +7,7 @@ import { SeatGrid } from '@/components/booking/SeatGrid';
 import { BookingForm } from '@/components/booking/BookingForm';
 import { useBookingStore } from '@/store/useBookingStore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, MapPin, Clock, Tag, RefreshCw } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Tag, RefreshCw, AlertTriangle, Lock } from 'lucide-react';
 import Link from 'next/link';
 import apiClient from '@/lib/axios';
 import { useQuery } from '@tanstack/react-query';
@@ -49,6 +49,9 @@ export default function BookingPage() {
       minute: '2-digit',
     });
 
+  const isExpired = showtime?.showDateTime ? new Date(showtime.showDateTime) < new Date() : false;
+  const isLocked = Boolean(showtime?.isLocked);
+
   return (
     <div className="min-h-screen bg-[#0a0a0f] py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -69,9 +72,22 @@ export default function BookingPage() {
             </div>
           ) : (
             <>
-              <h1 className="text-3xl font-bold text-white font-prompt mb-4 tracking-wide">
-                {showtime?.movie?.title ?? 'เลือกที่นั่ง'}
-              </h1>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <h1 className="text-3xl font-bold text-white font-prompt tracking-wide">
+                  {showtime?.movie?.title ?? 'เลือกที่นั่ง'}
+                </h1>
+                {isExpired && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold">
+                    <AlertTriangle className="w-3.5 h-3.5" /> รอบฉายผ่านไปแล้ว
+                  </span>
+                )}
+                {isLocked && !isExpired && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 text-xs font-bold">
+                    <Lock className="w-3.5 h-3.5" /> รอบฉายถูกล็อค
+                  </span>
+                )}
+              </div>
+
               <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-gray-300">
                 {showtime?.cinema && (
                   <div className="flex items-center gap-2 bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-700/50">
@@ -107,7 +123,7 @@ export default function BookingPage() {
 
         {/* Seat Map Container */}
         <div className="rounded-3xl border border-white/5 bg-gray-900/30 backdrop-blur-sm p-6 sm:p-10 mb-8 shadow-2xl overflow-hidden">
-          <SeatGrid seats={seats} isLoading={seatsLoading} showtimeId={showtimeIdNum} failedSeatId={failedSeatId} />
+          <SeatGrid seats={seats} isLoading={seatsLoading} showtimeId={showtimeIdNum} failedSeatId={failedSeatId} isLocked={isLocked} />
         </div>
 
         {/* Bottom Booking Form / Sticky Bar */}
@@ -117,10 +133,11 @@ export default function BookingPage() {
               showtimeId={showtimeIdNum}
               ticketPrice={showtime.ticketPrice}
               seats={seats}
+              isExpired={isExpired}
+              isLocked={isLocked}
               onBookingFailed={(seatId) => {
-                // If a specific seat failed, trigger the shake animation
                 setFailedSeatId(seatId);
-                setTimeout(() => setFailedSeatId(null), 1000); // Clear after animation
+                setTimeout(() => setFailedSeatId(null), 1000);
               }}
             />
           </div>

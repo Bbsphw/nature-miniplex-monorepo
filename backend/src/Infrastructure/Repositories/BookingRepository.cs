@@ -27,7 +27,15 @@ public class BookingRepository : Repository<Booking>, IBookingRepository
     public async Task<Booking?> GetBookingWithItemsAsync(System.Guid id, CancellationToken cancellationToken = default)
     {
         return await _dbSet
+            .Include(b => b.Customer)
             .Include(b => b.BookingItems)
+                .ThenInclude(bi => bi.Showtime)
+                    .ThenInclude(st => st.Movie)
+            .Include(b => b.BookingItems)
+                .ThenInclude(bi => bi.Showtime)
+                    .ThenInclude(st => st.Cinema)
+            .Include(b => b.BookingItems)
+                .ThenInclude(bi => bi.Seat)
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
     }
 
@@ -37,7 +45,7 @@ public class BookingRepository : Repository<Booking>, IBookingRepository
 
         if (!string.IsNullOrEmpty(phoneNumber))
         {
-            query = query.Where(b => b.Customer.PhoneNumber == phoneNumber);
+            query = query.Where(b => b.Customer.PhoneNumber.Contains(phoneNumber));
         }
 
         return await query
@@ -50,7 +58,17 @@ public class BookingRepository : Repository<Booking>, IBookingRepository
                 CustomerId = b.CustomerId,
                 BookingTime = b.BookingTime,
                 Status = b.Status.ToString(),
-                CustomerPhoneNumber = b.Customer.PhoneNumber
+                CustomerPhoneNumber = b.Customer.PhoneNumber,
+                BookingItems = b.BookingItems.Select(bi => new NatureMiniPlex.Core.Application.DTOs.BookingItemDto
+                {
+                    Id = bi.Id,
+                    BookingId = bi.BookingId,
+                    ShowtimeId = bi.ShowtimeId,
+                    SeatId = bi.SeatId,
+                    Price = bi.Price,
+                    ItemStatus = bi.ItemStatus.ToString(),
+                    SeatName = bi.Seat != null ? bi.Seat.ColumnName + bi.Seat.RowName : ""
+                }).ToList()
             })
             .ToListAsync(cancellationToken);
     }

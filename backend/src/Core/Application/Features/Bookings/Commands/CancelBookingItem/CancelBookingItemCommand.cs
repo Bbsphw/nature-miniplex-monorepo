@@ -26,11 +26,17 @@ public class CancelBookingItemCommandHandler : IRequestHandler<CancelBookingItem
 
     public async Task<bool> Handle(CancelBookingItemCommand request, CancellationToken cancellationToken)
     {
-        var bookings = await _bookingRepository.GetAllAsync(cancellationToken);
-        var booking = bookings.FirstOrDefault(b => b.Id == request.BookingId);
+        // Use GetBookingWithItemsAsync so that Customer navigation property is included
+        var booking = await _bookingRepository.GetBookingWithItemsAsync(request.BookingId, cancellationToken);
 
         if (booking == null) throw new Exception("Booking not found.");
-        if (booking.Customer?.PhoneNumber != request.PhoneNumber) throw new Exception("Phone number does not match the booking owner.");
+
+        // Normalize phone numbers (strip non-digit chars) for a robust comparison
+        var customerPhone = new string((booking.Customer?.PhoneNumber ?? string.Empty).Where(char.IsDigit).ToArray());
+        var requestPhone  = new string((request.PhoneNumber ?? string.Empty).Where(char.IsDigit).ToArray());
+
+        if (string.IsNullOrEmpty(customerPhone) || customerPhone != requestPhone)
+            throw new Exception("Phone number does not match the booking owner.");
 
         var item = booking.BookingItems?.FirstOrDefault(i => i.Id == request.BookingItemId);
         if (item == null) throw new Exception("Booking item not found.");
@@ -39,8 +45,8 @@ public class CancelBookingItemCommandHandler : IRequestHandler<CancelBookingItem
         if (showtime != null && showtime.IsLocked) throw new Exception("Showtime is locked. Cannot cancel ticket.");
 
         item.ItemStatus = ItemStatus.Canceled;
-        
-        // If all items are canceled, cancel the booking
+
+        // If all items are now canceled, mark the whole booking as canceled too
         if (booking.BookingItems != null && booking.BookingItems.All(i => i.ItemStatus == ItemStatus.Canceled))
         {
             booking.Status = BookingStatus.Canceled;

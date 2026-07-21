@@ -7,7 +7,7 @@ import apiClient from '@/lib/axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { toast } from '@/store/useToastStore';
 import axios from 'axios';
 import type { AuthResponse } from '@/types/api';
 import { Film, Loader2, Lock, User } from 'lucide-react';
@@ -32,7 +32,9 @@ export default function AdminLoginPage() {
         password,
       });
       setAuth(data);
-      toast.success(`ยินดีต้อนรับ ${data.username}!`);
+      toast.success(`ยินดีต้อนรับ ${data.username}!`, {
+        description: 'เข้าสู่ระบบผู้ดูแลระบบ Nature MiniPlex เรียบร้อยแล้ว',
+      });
       router.push('/admin/movies');
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 401) {

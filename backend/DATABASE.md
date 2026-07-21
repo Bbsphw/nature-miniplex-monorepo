@@ -1,171 +1,165 @@
-# สถาปัตยกรรมฐานข้อมูล & Guidelines (Database Architecture)
+# 🗄️ Nature MiniPlex - Database Architecture & Guidelines Specification
 
-[⬅️ กลับหน้า Backend](./README.md) | [🏠 กลับสู่หน้าหลัก](../README.md)
-เอกสารฉบับนี้อธิบายถึงมาตรฐานการใช้งาน Database, Entity Framework (EF) Core, การจัดการ Concurrency และ Data Seeding สำหรับ Backend
+[⬅️ กลับสู่ Backend README](./README.md) | [🏛️ Architecture Specs](./ARCHITECTURE.md) | [📚 API Documentation](./API_DOCS.md)
 
-## 1. ฐานข้อมูลเชิงสัมพันธ์ (Relational Database - SQL Server)
-
-เราใช้ SQL Server เป็น Database หลักของระบบ โดยมี **EF Core 8** ทำหน้าที่เป็น ORM สำหรับจัดการ Schema
-
-### หลักการออกแบบ Schema (Schema Design Principles)
-- **Normalization**: ออกแบบโครงสร้างในระดับ 3NF เป็นหลัก ยกเว้นมีเหตุผลด้าน Performance (เช่น Reporting) 
-- **Fluent API Configuration**: การตั้งค่าโครงสร้างตาราง (Keys, Indexes, String Length) ต้องแยกออกไปเขียนไว้ในคลาสที่สืบทอดจาก `IEntityTypeConfiguration<T>` เสมอ **ห้ามใช้ Data Annotations (เช่น `[Required]`, `[MaxLength]`) ในคลาส Entity บน Domain Layer เด็ดขาด** เพื่อรักษาความคลีนของ Domain
-- **Indexes**: เพิ่ม Indexes ในคอลัมน์ที่มีการสืบค้นบ่อย (เช่น `MovieId`, `UserId`)
-
-### การจัดการ EF Core Migrations
-ควรสร้าง Migrations ก็ต่อเมื่อการปรับเปลี่ยน Schema สมบูรณ์แล้ว
-```bash
-# CMD / PowerShell
-dotnet ef migrations add <MigrationName> --project src\NatureMiniPlex.Infrastructure --startup-project src\NatureMiniPlex.Api
-dotnet ef database update --project src\NatureMiniPlex.Infrastructure --startup-project src\NatureMiniPlex.Api
-
-# Bash (WSL / Linux / macOS)
-dotnet ef migrations add <MigrationName> --project src/NatureMiniPlex.Infrastructure --startup-project src/NatureMiniPlex.Api
-dotnet ef database update --project src/NatureMiniPlex.Infrastructure --startup-project src/NatureMiniPlex.Api
-```
+เอกสารฉบับนี้อธิบายถึงมาตรฐานสถาปัตยกรรมฐานข้อมูล (Database Architecture), การออกแบบ Schema, Entity Framework Core 8 Code-First Guidelines, กลยุทธ์การรับมือ Concurrency, และ DBML Diagram ของระบบ **Nature MiniPlex**
 
 ---
 
-## 2. การควบคุม Concurrency (Preventing Race Conditions)
+## 1. 🛢️ การออกแบบฐานข้อมูล (Relational DB Design - SQL Server 2022)
 
-ระบบจองตั๋วโรงภาพยนตร์มีโอกาสสูงมากที่ User หลายคนจะกดจองที่นั่งเดียวกันพร้อมกัน
+ระบบใช้ **SQL Server 2022** เป็น RDBMS หลัก และใช้ **Entity Framework Core 8** เป็น ORM หลักในการจัดการ Data Access
 
-### กลยุทธ์ที่ใช้: Filtered Unique Index ร่วมกับ RowVersion
-ในการสร้างรายการจอง เราอาศัยฐานข้อมูลป้องกันการจองซ้ำผ่าน Filtered Index (ห้ามที่นั่งเดียวกันในรอบฉายเดียวกันซ้ำกันถ้าสถานะยังเป็น Active)
-ส่วนการทำ Optimistic Concurrency เราใช้คอลัมน์ประเภท `RowVersion` เก็บไว้บน Entity ของ `BookingItem` สำหรับป้องกันการอัพเดทซ้อนทับกัน
+### หลักการออกแบบ Schema (Schema Design Principles)
+1. **Third Normal Form (3NF):** ออกแบบโครงสร้างตารางอยู่ในระดับ 3NF เป็นมาตรฐาน ยกเว้นส่วนที่ทำ Denormalization เพื่อประธานประสิทธิภาพการดึงรายงาน (Reporting Performance)
+2. **Fluent API Configuration:** การตั้งค่า Schema (Primary Keys, Foreign Keys, String Lengths, Default Values) ต้องแยกออกไปเขียนในคลาสที่สืบทอดจาก `IEntityTypeConfiguration<T>` บนเลเยอร์ `Infrastructure/Persistence/Configurations/`
+3. **Strict Domain Purity:** ห้ามใส่ Data Annotations (เช่น `[Required]`, `[MaxLength]`) บน Domain Entities เพื่อรักษา Domain Purity
 
-ตัวอย่างโค้ดฝั่ง Infrastructure Configuration:
+---
+
+## 2. ⚡ กลยุทธ์ Concurrency Control ระดับฐานข้อมูล
+
+ในการจองตั๋วภาพยนตร์ สภาวะ Race Conditions มีโอกาสเกิดขึ้นสูง ระบบรับประกัน **Zero Double-Booking 100%** ผ่านการผสมผสานกลยุทธ์ดังนี้:
+
+### 2.1 Filtered Unique Index (Double-Booking Prevention)
+กำหนด Index พิเศษในระดับ SQL Server ในตาราง `BookingItems`:
+
 ```csharp
+// Infrastructure/Persistence/Configurations/BookingItemConfiguration.cs
 public class BookingItemConfiguration : IEntityTypeConfiguration<BookingItem>
 {
     public void Configure(EntityTypeBuilder<BookingItem> builder)
     {
-        // สร้าง RowVersion column ป้องกัน Update ซ้อน
-        builder.Property(b => b.RowVersion).IsRowVersion();
-        
-        // Filtered Unique Index ป้องกัน Insert ซ้ำ (Double Booking)
-        builder.HasIndex(b => new { b.ShowtimeId, b.SeatId })
+        builder.HasKey(bi => bi.Id);
+
+        // Filtered Unique Index ป้องกันการจองที่นั่งซ้ำในรอบฉายเดียวกันเมื่อสถานะยังเป็น Active
+        builder.HasIndex(bi => new { bi.ShowtimeId, bi.SeatId })
+            .HasDatabaseName("IX_BookingItem_Showtime_Seat_Active")
             .IsUnique()
-            .HasFilter("[ItemStatus] = 'Active'");
+            .HasFilter("[ItemStatus] = 1"); // 1 = Active
     }
 }
 ```
 
+### 2.2 RowVersion (Optimistic Locking)
+ใช้ `RowVersion` ในตาราง `BookingItems` สำหรับตรวจจับและป้องกันการอัปเดตข้อมูลซ้อนทับกัน (Concurrent Updates):
+
+```csharp
+builder.Property(bi => bi.RowVersion)
+    .IsRowVersion();
+```
+
 ---
 
-## 3. การทำ ข้อมูลจำลองตั้งต้น (Data Seeding)
+## 3. 🚀 การรัน EF Core Migrations
 
-เพื่อให้ Developer ทุกคนในทีมสามารถรันระบบและทดสอบได้ทันที เราควรเตรียม Data Seed สำหรับ Master Data (เช่น ประเภทที่นั่ง, โรงภาพยนตร์จำลอง, สาขา)
+```bash
+# การสร้าง Migration ใหม่
+dotnet ef migrations add <MigrationName> --project src/Infrastructure/NatureMiniPlex.Infrastructure.csproj --startup-project src/API/NatureMiniPlex.API.csproj
 
-- **สร้างคลาส DatabaseSeeder**: สร้าง Logic ดึงและเติมข้อมูลเริ่มต้นไว้ในโฟลเดอร์ `Infrastructure/Persistence/Seeding`
-- **รันอัตโนมัติเมื่อ Start**: เรียกฟังก์ชัน Seeder ภายใน `Program.cs` หลังจากสั่ง `.MigrateAsync()` สำเร็จ (ตรวจสอบให้แน่ใจว่าทำงานเฉพาะใน Environment `Development` เท่านั้น)
+# การอัปเดต Schema ไปยัง Database
+dotnet ef database update --project src/Infrastructure/NatureMiniPlex.Infrastructure.csproj --startup-project src/API/NatureMiniPlex.API.csproj
+```
 
 ---
 
-## 4. โครงสร้างฐานข้อมูล (DBML Schema)
-
-โครงสร้างแบบละเอียดที่ใช้จริงในโปรเจกต์ NatureMiniPlex (MVP)
+## 4. 📐 โครงสร้าง Schema ฐานข้อมูล (DBML Schema Specifications)
 
 ```dbml
-Project NatureMiniPlex_MVP {
-  database_type: 'SQL Server'
+Project NatureMiniPlex_Database {
+  database_type: 'SQL Server 2022'
   Note: '''
-    สถาปัตยกรรมฐานข้อมูล Nature MiniPlex (MVP) 
-    - พร้อมสำหรับ Entity Framework Core 8 (Code-First)
-    - Role 'Owner' จัดการ Master Data และ 'Staff' จัดการ Operation หน้างาน
-    - ลูกค้าทำรายการจองผ่าน UI เองโดยใช้เบอร์โทรศัพท์
-    - ป้องกัน Double Booking 100% ระดับ Database
+    สถาปัตยกรรมฐานข้อมูล Nature MiniPlex
+    - Entity Framework Core 8 Code-First Architecture
+    - Filtered Unique Index ป้องกัน Double-Booking 100%
+    - รองรับ Role-Based Access Control (Owner / Staff)
   '''
 }
 
 // ----------------------------------------------------
-// SYSTEM & AUDIT (ระบบจัดการสิทธิ์และประวัติการทำงาน)
+// 1. SYSTEM & AUDIT (ระบบจัดการสิทธิ์และประวัติการทำงาน)
 // ----------------------------------------------------
 
 Table Users {
-  Id int [pk, increment, note: 'PK: รหัสพนักงาน (Auto Increment)']
-  Username varchar(50) [unique, note: 'UNIQUE: ชื่อล็อกอินเข้าระบบหลังบ้าน']
-  PasswordHash varchar(255) [note: 'รหัสผ่าน (Hashed)']
-  Role varchar(20) [note: "สิทธิ์: 'Owner' (จัดการหนัง/รอบฉาย/Report) , 'Staff' (กดเริ่มฉายเท่านั้น)"]
-  IsActive boolean [default: true, note: 'สถานะการทำงาน (Soft Delete)']
+  Id int [pk, increment, note: 'PK: รหัสพนักงาน']
+  Username varchar(50) [unique, not null, note: 'ชื่อผู้ใช้งาน']
+  PasswordHash varchar(255) [not null, note: 'รหัสผ่าน BCrypt Hashed']
+  Role varchar(20) [not null, note: "'Owner' หรือ 'Staff'"]
+  IsActive boolean [default: true, note: 'สถานะการใช้งาน']
 }
 
 Table ActionLogs {
-  Id int [pk, increment, note: 'PK: รหัส Log']
-  UserId int [ref: > Users.Id, note: 'FK: พนักงานคนไหนทำรายการ (Audit Trail)']
-  ActionType varchar(50) [note: "ชนิดการกระทำ เช่น 'Showtime.Lock', 'Movie.Create'"]
-  EntityName varchar(50) [note: "ตารางที่เกิดการกระทำ เช่น 'Showtimes'"]
-  EntityId int [note: 'ID ของข้อมูลอ้างอิง']
-  Timestamp datetime [default: `GETDATE()`, note: 'เวลาที่ทำรายการ']
+  Id int [pk, increment, note: 'PK: รหัส Audit Log']
+  UserId int [ref: > Users.Id, note: 'FK: ผู้ทำรายการ']
+  ActionType varchar(50) [not null, note: "ชนิดการทำรายการ เช่น 'Showtime.Create'"]
+  EntityName varchar(50) [not null, note: "ตารางเป้าหมาย"]
+  EntityId int [not null, note: 'ID ข้อมูลเป้าหมาย']
+  Timestamp datetime [default: `GETUTCDATE()`, note: 'เวลาทำรายการ (UTC)']
 }
 
 // ----------------------------------------------------
-// MASTER DATA (ข้อมูลพื้นฐาน)
+// 2. MASTER DATA (ข้อมูลหลัก)
 // ----------------------------------------------------
 
 Table Cinemas {
   Id int [pk, increment, note: 'PK: รหัสสาขา']
-  Name varchar(100) [note: "ชื่อสาขา ('ศรีราชา', 'บางแสน')"]
-  TotalSeats int [note: 'จำนวนที่นั่งรวมของสาขา']
+  Name varchar(100) [not null, note: 'ชื่อสาขาโรงภาพยนตร์']
+  TotalSeats int [not null, note: 'จำนวนที่นั่งทั้งหมด']
   IsActive boolean [default: true]
 }
 
 Table Seats {
   Id int [pk, increment, note: 'PK: รหัสผังที่นั่ง']
-  CinemaId int [ref: > Cinemas.Id, note: 'FK: ผูกกับสาขาไหน']
-  RowName varchar(5) [note: "แถว เช่น 'A', 'B'"]
-  ColumnName varchar(5) [note: "คอลัมน์ เช่น '1', '2'"]
+  CinemaId int [ref: > Cinemas.Id, note: 'FK: ผูกกับสาขา']
+  RowName varchar(5) [not null, note: "แถวที่นั่ง เช่น 'A', 'B'"]
+  ColumnName varchar(5) [not null, note: "เลขที่นั่ง เช่น '1', '2'"]
 }
 
 Table Movies {
   Id int [pk, increment, note: 'PK: รหัสภาพยนตร์']
-  Title varchar(200) [unique, note: 'UNIQUE: ชื่อภาพยนตร์']
-  StartDate date [note: 'วันที่เริ่มฉาย (Constraint: <= EndDate)']
-  EndDate date [note: 'วันสุดท้ายที่ฉาย']
-  BasePrice decimal(10,2) [note: 'ราคาตั๋วตั้งต้นของหนังเรื่องนี้ (รองรับหนัง Blockbuster)']
-  IsActive boolean [default: true, note: 'Soft Delete เพื่อรักษาประวัติยอดขายย้อนหลัง (Report)']
+  Title varchar(200) [unique, not null, note: 'ชื่อภาพยนตร์']
+  Description text [null, note: 'รายละเอียดภาพยนตร์']
+  DurationMinutes int [not null, note: 'ความยาว (นาที)']
+  ReleaseDate date [not null, note: 'วันที่เริ่มฉาย']
+  BasePrice decimal(10,2) [not null, note: 'ราคาฐานภาพยนตร์']
+  IsActive boolean [default: true, note: 'Soft Delete Flag']
 }
 
 // ----------------------------------------------------
-// TRANSACTION DATA (ข้อมูลรอบฉายและการจอง)
+// 3. TRANSACTION DATA (รอบฉายและการจอง)
 // ----------------------------------------------------
 
 Table Showtimes {
   Id int [pk, increment, note: 'PK: รหัสรอบฉาย']
-  CinemaId int [ref: > Cinemas.Id, note: 'FK: ฉายที่สาขาไหน']
-  MovieId int [ref: > Movies.Id, note: 'FK: ฉายเรื่องอะไร']
-  ShowDateTime datetime [note: 'วันเวลาที่ฉายจริง']
-  TicketPrice decimal(10,2) [note: 'ราคาขายรอบนี้ (Owner แก้ไขจาก BasePrice ได้ เพื่อจัดโปรโมชั่น)']
-  IsLocked boolean [default: false, note: 'สถานะ Lock: พนักงาน Staff กดเป็น true เพื่อปิดรับจอง']
+  CinemaId int [ref: > Cinemas.Id, note: 'FK: สาขา']
+  MovieId int [ref: > Movies.Id, note: 'FK: ภาพยนตร์']
+  ShowDateTime datetime [not null, note: 'เวลาฉาย (UTC)']
+  TicketPrice decimal(10,2) [not null, note: 'ราคาตั๋วรอบฉายนี้']
+  IsLocked boolean [default: false, note: 'สถานะปิดรับจอง']
   IsActive boolean [default: true]
 }
 
 Table Customers {
   Id uuid [pk, note: 'PK: รหัสลูกค้า (Sequential GUID)']
-  PhoneNumber varchar(15) [unique, note: 'UNIQUE INDEX: เบอร์โทร (อ้างอิงการจอง/ยกเลิกผ่านหน้าบ้าน)']
-  Email varchar(255) [null, note: 'อีเมลของลูกค้า (Optional)']
-  CreatedAt datetime [default: `GETDATE()`]
+  PhoneNumber varchar(15) [unique, not null, note: 'เบอร์โทรศัพท์ (Search Key)']
+  Email varchar(255) [null, note: 'อีเมลลูกค้า']
+  CreatedAt datetime [default: `GETUTCDATE()`]
 }
 
-Table Booking {
-  Id uuid [pk, note: 'PK: รหัสบิล (Header)']
-  CustomerId uuid [ref: > Customers.Id, note: 'FK: บิลนี้เป็นของลูกค้ารหัสอะไร']
-  BookingTime datetime [default: `GETDATE()`, note: 'เวลาที่ลูกค้ากดยืนยันบิล']
-  Status varchar(20) [note: "สถานะบิลรวม เช่น 'Completed', 'Canceled'"]
+Table Bookings {
+  Id uuid [pk, note: 'PK: รหัสใบจอง (Header)']
+  CustomerId uuid [ref: > Customers.Id, note: 'FK: ลูกค้า']
+  BookingTime datetime [default: `GETUTCDATE()`, note: 'เวลาทำรายการ']
+  Status int [not null, note: 'BookingStatus Enum (1=Completed, 2=Canceled)']
 }
 
-Table BookingItem {
+Table BookingItems {
   Id uuid [pk, note: 'PK: รหัสตั๋วรายใบ (Line Item)']
-  BookingId uuid [ref: > Booking.Id, note: 'FK: อยู่ในบิลรหัสอะไร']
-  ShowtimeId int [ref: > Showtimes.Id, note: 'FK: จองรอบฉายไหน (ใช้อ้างอิงไปหาหนังและสาขา)']
-  SeatId int [ref: > Seats.Id, note: 'FK: จองที่นั่งไหน']
-  Price decimal(10,2) [note: 'ราคา ณ วันที่ซื้อ (ดึงจาก Showtimes.TicketPrice) เพื่อทำ Daily Revenue Report']
-  ItemStatus varchar(20) [note: "สถานะ 'Active', 'Canceled' (รองรับการทำ Partial Cancellation)"]
-  
-  Note: '''
-    🔥 ความปลอดภัยระดับ Database: 
-    ต้องสร้าง Filtered Index ใน .NET (Fluent API): 
-    CREATE UNIQUE INDEX IX_Showtime_Seat ON BookingItem (ShowtimeId, SeatId) WHERE ItemStatus = 'Active';
-  '''
+  BookingId uuid [ref: > Bookings.Id, note: 'FK: ใบจอง']
+  ShowtimeId int [ref: > Showtimes.Id, note: 'FK: รอบฉาย']
+  SeatId int [ref: > Seats.Id, note: 'FK: ที่นั่ง']
+  Price decimal(10,2) [not null, note: 'ราคาขาย ณ วันที่ซื้อ']
+  ItemStatus int [not null, note: 'ItemStatus Enum (1=Active, 2=Canceled)']
+  RowVersion timestamp [note: 'Optimistic Concurrency RowVersion']
 }
 ```

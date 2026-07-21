@@ -33,36 +33,47 @@ public class ExceptionHandlingMiddleware
         context.Response.ContentType = "application/problem+json";
         
         var statusCode = StatusCodes.Status500InternalServerError;
-        var title = "An internal server error occurred.";
+        var title = "เกิดข้อผิดพลาดภายในระบบ";
         var detail = exception.Message;
 
         if (exception is ValidationException validationException)
         {
             statusCode = StatusCodes.Status400BadRequest;
-            title = "Validation Error";
+            title = "ข้อมูลไม่ถูกต้องตามเงื่อนไข";
             detail = string.Join("; ", validationException.Errors);
+        }
+        else if (exception is NatureMiniPlex.Core.Domain.Exceptions.DomainException domainException)
+        {
+            statusCode = StatusCodes.Status422UnprocessableEntity;
+            title = "ผิดเงื่อนไขทางธุรกิจ";
+            detail = domainException.Message;
+        }
+        else if (exception is KeyNotFoundException notFoundException)
+        {
+            statusCode = StatusCodes.Status404NotFound;
+            title = "ไม่พบข้อมูล";
+            detail = notFoundException.Message;
         }
         else if (exception is Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
         {
             statusCode = StatusCodes.Status409Conflict;
-            title = "Concurrency Conflict";
-            detail = "The record you attempted to edit was modified by another user after you got the original value.";
+            title = "เกิดข้อขัดแย้งในการทำรายการ";
+            detail = "ข้อมูลที่คุณพยายามทำรายการถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชเพื่อเลือกใหม่";
         }
         else if (exception is Microsoft.EntityFrameworkCore.DbUpdateException dbUpdateEx)
         {
             statusCode = StatusCodes.Status409Conflict;
-            title = "Database Conflict";
-            detail = "A conflict occurred with the database. The record might already exist or has been modified.";
-            // If inner exception contains unique index violation, it's likely a double booking
+            title = "เกิดข้อขัดแย้งในฐานข้อมูล";
+            detail = "เกิดข้อขัดแย้งในฐานข้อมูล ข้อมูลนี้อาจถูกจองหรือแก้ไขไปแล้ว";
             if (dbUpdateEx.InnerException != null && dbUpdateEx.InnerException.Message.Contains("IX_BookingItem_Showtime_Seat_Active"))
             {
-                detail = "One or more of the selected seats have already been booked by someone else.";
+                detail = "ที่นั่งบางรายการที่ท่านเลือกถูกจองไปแล้วโดยลูกค้ารายอื่น";
             }
         }
-        else if (exception is Exception) // Handle generic exceptions from Use Cases as bad request for MVP
+        else
         {
-            statusCode = StatusCodes.Status400BadRequest;
-            title = "Bad Request";
+            statusCode = StatusCodes.Status500InternalServerError;
+            title = "เกิดข้อผิดพลาดภายในระบบ";
             detail = exception.Message;
         }
 

@@ -22,7 +22,10 @@ public static class DependencyInjection
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-        services.Configure<Authentication.JwtSettings>(configuration.GetSection(Authentication.JwtSettings.SectionName));
+        services.AddOptions<Authentication.JwtSettings>()
+            .Bind(configuration.GetSection(Authentication.JwtSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
         services.AddSingleton<NatureMiniPlex.Core.Application.Interfaces.IJwtTokenGenerator, Authentication.JwtTokenGenerator>();
         services.AddSingleton<NatureMiniPlex.Core.Application.Interfaces.IPasswordHasher, Authentication.PasswordHasher>();
         

@@ -30,8 +30,8 @@ public class CancelBookingBySeatCommandHandler : IRequestHandler<CancelBookingBy
     public async Task<bool> Handle(CancelBookingBySeatCommand request, CancellationToken cancellationToken)
     {
         var showtime = await _showtimeRepository.GetByIdAsync(request.ShowtimeId, cancellationToken);
-        if (showtime == null) throw new Exception("ไม่พบรอบฉายนี้");
-        if (showtime.IsLocked) throw new Exception("รอบฉายนี้ถูกล็อคแล้ว ไม่สามารถยกเลิกการจองได้");
+        if (showtime == null) throw new NatureMiniPlex.Core.Domain.Exceptions.DomainException("ไม่พบรอบฉายนี้");
+        showtime.EnsureCanBookOrCancel();
 
         var bookedItems = await _bookingRepository.GetBookedSeatsForShowtimeAsync(request.ShowtimeId, cancellationToken);
         var targetItem = bookedItems.FirstOrDefault(b => b.SeatId == request.SeatId);

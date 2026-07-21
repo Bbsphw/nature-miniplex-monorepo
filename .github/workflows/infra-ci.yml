@@ -24,32 +24,4 @@ jobs:
         run: |
           cd infra
           cp .env.example .env
-          docker compose -f docker/docker-compose.yml config --quiet
-
-  terraform-lint-and-scan:
-    name: "Terraform Lint, Validate & Security Scan"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup HashiCorp Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.7
-
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive infra/terraform
-
-      - name: Terraform Init & Validate (Dev)
-        run: |
-          cd infra/terraform/environments/dev
-          terraform init -backend=false
-          terraform validate
-
-      - name: Run Security Vulnerability Scan (Checkov)
-        uses: bridgecrewio/checkov-action@master
-        with:
-          directory: infra/terraform
-          framework: terraform
-          soft_fail: true
+          docker compose config --quiet

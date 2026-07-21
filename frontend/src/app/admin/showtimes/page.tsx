@@ -522,13 +522,13 @@ export default function AdminShowtimesPage() {
                 {movies.filter(m => m.isActive || (editing && m.id === editing.movieId)).length === 0 ? (
                   <div className="col-span-2 p-4 bg-yellow-950/40 border border-yellow-800/60 rounded-xl text-yellow-200 text-xs font-semibold flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-                    <span>ไม่มีภาพยนตร์ที่เปิดฉายอยู่ กรุณาเปิดฉายภาพยนตร์ในหน้า "จัดการภาพยนตร์" ก่อนจัดรอบฉาย</span>
+                    <span>ไม่มีภาพยนตร์ที่เปิดฉายอยู่ กรุณาเปิดฉายภาพยนตร์ในหน้า &quot;จัดการภาพยนตร์&quot; ก่อนจัดรอบฉาย</span>
                   </div>
                 ) : movies
                     .filter(m => m.isActive || (editing && m.id === editing.movieId))
                     .filter(m => m.title.toLowerCase().includes(movieSearchQuery.trim().toLowerCase())).length === 0 ? (
                   <div className="col-span-2 p-4 bg-surface-base border border-surface-border rounded-xl text-muted-foreground text-xs text-center">
-                    ไม่พบภาพยนตร์ที่ตรงกับคำค้นหา "{movieSearchQuery}"
+                    ไม่พบภาพยนตร์ที่ตรงกับคำค้นหา &quot;{movieSearchQuery}&quot;
                   </div>
                 ) : (
                   movies

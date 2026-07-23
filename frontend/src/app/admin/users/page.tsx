@@ -28,6 +28,9 @@ import {
   Check,
   CheckCircle2,
   Lock,
+  Eye,
+  Code2,
+  Shield,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,13 +39,27 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { User as UserType, UserRole } from '@/types/api';
+import type { User as UserType, UserRole, ActionLog } from '@/types/api';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 
 export default function AdminUsersPage() {
   const currentUsername = useAuthStore((state) => state.username);
 
   const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users');
   const [searchQuery, setSearchQuery] = useState('');
+  const [logSearchQuery, setLogSearchQuery] = useState('');
+  const [selectedLogDetail, setSelectedLogDetail] = useState<ActionLog | null>(null);
+
+  const [usersPage, setUsersPage] = useState(1);
+  const [logsPage, setLogsPage] = useState(1);
+  const pageSize = 10;
 
   // Modals
   const [createUserOpen, setCreateUserOpen] = useState(false);
@@ -271,153 +288,334 @@ export default function AdminUsersPage() {
                   </TableRow>
                 </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user) => {
-                      const isSelf = user.username === currentUsername;
-                      return (
-                        <TableRow key={user.id} className="border-gray-800/80 hover:bg-gray-800/40">
-                          <TableCell className="font-mono text-xs text-brand-red font-bold">#{user.id}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-white text-sm">{user.username}</span>
-                              {isSelf && (
-                                <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400 px-1.5 py-0">
-                                  You (Active)
-                                </Badge>
+                    {(() => {
+                      const totalUsersPages = Math.ceil(filteredUsers.length / pageSize) || 1;
+                      const paginatedUsers = filteredUsers.slice((usersPage - 1) * pageSize, usersPage * pageSize);
+
+                      if (paginatedUsers.length === 0) {
+                        return (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-gray-500 py-12 italic text-xs font-prompt">
+                              ไม่พบรายการพนักงานในระบบตามคำค้นหา
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+
+                      return paginatedUsers.map((user) => {
+                        const isSelf = user.username === currentUsername;
+                        return (
+                          <TableRow key={user.id} className="border-gray-800/80 hover:bg-gray-800/40">
+                            <TableCell className="font-mono text-xs text-brand-red font-bold">#{user.id}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-white text-sm">{user.username}</span>
+                                {isSelf && (
+                                  <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400 px-1.5 py-0">
+                                    You (Active)
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {(() => {
+                                  const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role || 'CINEMA_MANAGER'];
+                                  return rawRoles.map((r: any, idx: number) => {
+                                    const rCode = typeof r === 'string' ? r : r.code || 'CINEMA_MANAGER';
+                                    return (
+                                      <Badge
+                                        key={`${user.id}-role-${idx}`}
+                                        className={`text-xs px-2.5 py-0.5 ${
+                                          rCode === 'SYSTEM_ADMIN'
+                                            ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                            : rCode === 'CINEMA_MANAGER'
+                                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                                            : 'bg-gray-800 text-gray-300 border-gray-700'
+                                        }`}
+                                      >
+                                        {rCode}
+                                      </Badge>
+                                    );
+                                  });
+                                })()}
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="text-xs text-gray-300">
+                              {user.cinemaId ? (
+                                <span className="flex items-center gap-1.5 text-blue-300">
+                                  <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                                  {user.cinemaId === 1 ? 'ศรีราชา (#1)' : user.cinemaId === 2 ? 'บางแสน (#2)' : `Cinema #${user.cinemaId}`}
+                                </span>
+                              ) : (
+                                <span className="text-gray-500 italic">All Cinemas (Global System Admin)</span>
                               )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {(() => {
-                                const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role || 'CINEMA_MANAGER'];
-                                return rawRoles.map((r: any, idx: number) => {
-                                  const rCode = typeof r === 'string' ? r : r.code || 'CINEMA_MANAGER';
-                                  return (
-                                    <Badge
-                                      key={`${user.id}-role-${idx}`}
-                                      className={`text-xs px-2.5 py-0.5 ${
-                                        rCode === 'SYSTEM_ADMIN'
-                                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                                          : rCode === 'CINEMA_MANAGER'
-                                          ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                                          : 'bg-gray-800 text-gray-300 border-gray-700'
-                                      }`}
-                                    >
-                                      {rCode}
-                                    </Badge>
-                                  );
-                                });
-                              })()}
-                            </div>
-                          </TableCell>
-
-
-                          <TableCell className="text-xs text-gray-300">
-                            {user.cinemaId ? (
-                              <span className="flex items-center gap-1.5 text-blue-300">
-                                <Building2 className="w-3.5 h-3.5 text-blue-400" />
-                                {user.cinemaId === 1 ? 'Sriracha' : user.cinemaId === 2 ? 'Bangsaen' : `Cinema #${user.cinemaId}`}
-                              </span>
-                            ) : (
-                              <span className="text-gray-500 italic">All Cinemas (Global System Admin)</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                user.isActive
-                                  ? 'border-emerald-500/40 text-emerald-400 bg-emerald-950/20 px-2.5 py-0.5 text-xs'
-                                  : 'border-red-500/40 text-red-400 bg-red-950/20 px-2.5 py-0.5 text-xs font-semibold'
-                              }
-                            >
-                              {user.isActive ? 'Active (เปิดใช้งาน)' : 'Disabled (ปิดใช้งาน)'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenManageUserModal(user)}
-                              className="border-gray-700 bg-gray-800/80 hover:bg-gray-700 text-gray-200 text-xs px-3 h-8 flex items-center gap-1.5 ml-auto"
-                            >
-                              <Settings className="w-3.5 h-3.5 text-brand-red" />
-                              <span>จัดการข้อมูล & สิทธิ์</span>
-                            </Button>
-                          </TableCell>
-
-
-                        </TableRow>
-                      );
-                    })}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  user.isActive
+                                    ? 'border-emerald-500/40 text-emerald-400 bg-emerald-950/20 px-2.5 py-0.5 text-xs'
+                                    : 'border-red-500/40 text-red-400 bg-red-950/20 px-2.5 py-0.5 text-xs font-semibold'
+                                }
+                              >
+                                {user.isActive ? 'Active (เปิดใช้งาน)' : 'Disabled (ปิดใช้งาน)'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenManageUserModal(user)}
+                                className="border-gray-700 bg-gray-800/80 hover:bg-gray-700 text-gray-200 text-xs px-3 h-8 flex items-center gap-1.5 ml-auto"
+                              >
+                                <Settings className="w-3.5 h-3.5 text-brand-red" />
+                                <span>จัดการข้อมูล & สิทธิ์</span>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      });
+                    })()}
                   </TableBody>
                 </Table>
               </div>
+
+            {/* Pagination Controls for Tab 1 (Users) */}
+            {(() => {
+              const totalUsersPages = Math.ceil(filteredUsers.length / pageSize) || 1;
+              if (totalUsersPages <= 1) return null;
+              return (
+                <div className="pt-3 border-t border-[#2A2A3E] flex flex-col sm:flex-row items-center justify-between gap-4 font-prompt">
+                  <span className="text-xs text-gray-400">
+                    แสดงรายการพนักงาน {(usersPage - 1) * pageSize + 1} - {Math.min(usersPage * pageSize, filteredUsers.length)} จากทั้งหมด {filteredUsers.length} คน
+                  </span>
+                  <Pagination className="w-auto mx-0">
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setUsersPage((p) => Math.max(1, p - 1));
+                          }}
+                          disabled={usersPage === 1}
+                          className="border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer"
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalUsersPages }, (_, i) => i + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            type="button"
+                            isActive={usersPage === page}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setUsersPage(page);
+                            }}
+                            className={
+                              usersPage === page
+                                ? 'bg-brand-red text-white border-brand-red shadow-[0_0_10px_rgba(227,24,55,0.3)] cursor-default font-bold'
+                                : 'border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer'
+                            }
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setUsersPage((p) => Math.min(totalUsersPages, p + 1));
+                          }}
+                          disabled={usersPage === totalUsersPages}
+                          className="border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer"
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              );
+            })()}
           </div>
         )}
 
         {/* TAB 2: Security & Audit Action Logs */}
         {activeTab === 'logs' && (
-          <div className="rounded-2xl border border-[#2A2A3E] bg-[#1C1C27] overflow-hidden shadow-xl p-6 space-y-4">
-            <div>
-              <h2 className="text-sm font-bold text-white flex items-center gap-2 font-prompt">
-                <FileText className="w-4 h-4 text-blue-400" />
-                ประวัติการทำรายการในระบบ (Security Action Audit Logs)
-              </h2>
-              <p className="text-gray-400 text-xs mt-0.5">
-                บันทึกการทำรายการสำคัญย้อนหลังเพื่อความโปร่งใสและตรวจสอบความปลอดภัย
-              </p>
+          <div className="rounded-2xl border border-[#2A2A3E] bg-[#1C1C27] overflow-hidden shadow-xl p-6 space-y-4 font-prompt">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-[#2A2A3E]">
+              <div>
+                <h2 className="text-sm font-bold text-white flex items-center gap-2 font-prompt">
+                  <Shield className="w-4 h-4 text-blue-400" />
+                  ประวัติการทำรายการในระบบ (Security Action Audit Logs)
+                </h2>
+                <p className="text-gray-400 text-xs mt-0.5">
+                  ระบบบันทึกประวัติความปลอดภัยและการกระทำสำคัญย้อนหลัง (ISO 27001 & PDPA Audit Trail)
+                </p>
+              </div>
+
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+                <Input
+                  placeholder="ค้นหา Log ID, Action, Actor..."
+                  value={logSearchQuery}
+                  onChange={(e) => setLogSearchQuery(e.target.value)}
+                  className="pl-9 bg-[#0A0A0F] border-[#2A2A3E] text-white h-9 text-xs focus-visible:ring-brand-red font-prompt"
+                />
+              </div>
             </div>
+
             <div className="rounded-xl border border-[#2A2A3E] overflow-hidden bg-[#0A0A0F]">
-                <Table>
-                  <TableHeader className="bg-gray-800/60">
-                    <TableRow className="border-gray-800 hover:bg-transparent">
-                      <TableHead className="text-gray-400 text-xs font-semibold">Log ID</TableHead>
-                      <TableHead className="text-gray-400 text-xs font-semibold">User</TableHead>
-                      <TableHead className="text-gray-400 text-xs font-semibold">Action Type</TableHead>
-                      <TableHead className="text-gray-400 text-xs font-semibold">Entity Name</TableHead>
-                      <TableHead className="text-gray-400 text-xs font-semibold">Entity ID</TableHead>
-                      <TableHead className="text-gray-400 text-xs font-semibold">Timestamp</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {actionLogs.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-gray-500 py-8 italic text-xs">
-                          ยังไม่มีบันทึก Action Log ในระบบ
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      actionLogs.map((log) => (
-                        <TableRow key={log.id} className="border-gray-800/80 hover:bg-gray-800/40">
-                          <TableCell className="font-mono text-xs text-blue-400 font-bold">#{log.id}</TableCell>
-                          <TableCell className="text-xs font-semibold text-white">
-                            {log.user?.username || `User #${log.userId}`}
+              <Table>
+                <TableHeader className="bg-[#0A0A0F]/80 border-b border-[#2A2A3E]">
+                  <TableRow className="border-[#2A2A3E] hover:bg-transparent">
+                    <TableHead className="text-gray-400 text-xs font-semibold font-prompt">Log ID</TableHead>
+                    <TableHead className="text-gray-400 text-xs font-semibold font-prompt">Status / Severity</TableHead>
+                    <TableHead className="text-gray-400 text-xs font-semibold font-prompt">Actor (Who & IP)</TableHead>
+                    <TableHead className="text-gray-400 text-xs font-semibold font-prompt">Action (What)</TableHead>
+                    <TableHead className="text-gray-400 text-xs font-semibold font-prompt">Target (Where)</TableHead>
+                    <TableHead className="text-gray-400 text-xs font-semibold font-prompt">Timestamp (When)</TableHead>
+                    <TableHead className="text-gray-400 text-xs font-semibold text-right font-prompt">Payload Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    const filteredLogs = actionLogs.filter((log) => {
+                      const q = logSearchQuery.toLowerCase();
+                      const action = (log.actionName || log.actionType || '').toLowerCase();
+                      const email = (log.actorEmail || '').toLowerCase();
+                      const role = (log.actorRole || '').toLowerCase();
+                      const user = (log.user?.username || '').toLowerCase();
+                      const ip = (log.ipAddress || '').toLowerCase();
+                      const target = (log.targetType || '').toLowerCase();
+                      const targetId = (log.targetId || '').toLowerCase();
+                      return (
+                        log.id.toString().includes(q) ||
+                        action.includes(q) ||
+                        email.includes(q) ||
+                        role.includes(q) ||
+                        user.includes(q) ||
+                        ip.includes(q) ||
+                        target.includes(q) ||
+                        targetId.includes(q)
+                      );
+                    });
+
+                    if (filteredLogs.length === 0) {
+                      return (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-gray-500 py-12 italic text-xs font-prompt">
+                            ยังไม่มีรายการบันทึก Action Log ในระบบ หรือไม่พบข้อมูลตามคำค้นหา
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+
+                    return filteredLogs.map((log) => {
+                      const level = (log.logLevel || 'INFO').toUpperCase();
+                      const statusCode = log.statusCode || 200;
+                      const actionName = log.actionName || log.actionType || 'N/A';
+                      const method = log.httpMethod || 'POST';
+
+                      return (
+                        <TableRow key={log.id} className="border-[#2A2A3E]/60 hover:bg-gray-800/40">
+                          <TableCell className="font-mono text-xs text-brand-red font-bold">#{log.id}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-mono px-2 py-0.5 ${
+                                  statusCode >= 200 && statusCode < 300
+                                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                    : statusCode >= 400 && statusCode < 500
+                                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                    : 'bg-red-500/15 text-red-400 border-red-500/30'
+                                }`}
+                              >
+                                {statusCode}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-mono font-bold px-1.5 py-0.5 ${
+                                  level === 'INFO'
+                                    ? 'border-blue-500/30 text-blue-400 bg-blue-950/20'
+                                    : level === 'WARNING'
+                                    ? 'border-amber-500/30 text-amber-400 bg-amber-950/20'
+                                    : 'border-red-500/30 text-red-400 bg-red-950/20'
+                                }`}
+                              >
+                                {level}
+                              </Badge>
+                            </div>
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              className={`text-[10px] font-mono ${
-                                log.actionType.includes('CANCEL') || log.actionType.includes('DELETE')
-                                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                                  : log.actionType.includes('CREATE')
-                                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                  : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                              }`}
-                            >
-                              {log.actionType}
-                            </Badge>
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-white">
+                                  {log.user?.username || (log.userId ? `User #${log.userId}` : 'Anonymous / System')}
+                                </span>
+                                {log.actorRole && (
+                                  <Badge variant="outline" className="text-[9px] font-mono border-gray-700 bg-gray-800 text-gray-300 px-1 py-0">
+                                    {log.actorRole}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-gray-400 font-mono flex items-center gap-2">
+                                <span>{log.actorEmail || 'No Email'}</span>
+                                {log.ipAddress && <span className="text-gray-500">({log.ipAddress})</span>}
+                              </div>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-xs text-gray-300">{log.entityName}</TableCell>
-                          <TableCell className="text-xs font-mono text-gray-400">#{log.entityId}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <Badge
+                                className={`text-[10px] font-mono px-2 py-0.5 ${
+                                  method === 'DELETE'
+                                    ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                    : method === 'PUT'
+                                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                    : method === 'POST'
+                                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                    : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                                }`}
+                              >
+                                {method}
+                              </Badge>
+                              <span className="text-xs font-mono font-bold text-gray-200">{actionName}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-xs font-mono">
+                              <span className="text-gray-300">{log.targetType || log.entityName || '-'}</span>
+                              {(log.targetId || log.entityId) && (
+                                <span className="text-brand-red font-bold ml-1.5">#{log.targetId || log.entityId}</span>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-xs text-gray-400 font-mono">
                             {new Date(log.timestamp).toLocaleString('th-TH')}
                           </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedLogDetail(log)}
+                              className="border-[#2A2A3E] bg-[#1C1C27] hover:bg-[#2A2A3E] text-gray-300 text-xs px-2.5 h-7 flex items-center gap-1 ml-auto"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-blue-400" />
+                              <span>ดู JSON Payload</span>
+                            </Button>
+                          </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                      );
+                    });
+                  })()}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
 
@@ -760,6 +958,70 @@ export default function AdminUsersPage() {
               </DialogFooter>
 
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* MODAL: Security Action Log Payload Detail */}
+        <Dialog open={!!selectedLogDetail} onOpenChange={() => setSelectedLogDetail(null)}>
+          <DialogContent className="bg-[#1C1C27] border-[#2A2A3E] text-white sm:max-w-2xl rounded-2xl max-h-[85vh] overflow-y-auto font-prompt">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold font-prompt text-white flex items-center gap-2">
+                <Code2 className="w-5 h-5 text-blue-400" />
+                รายละเอียด Action Audit Log Payload (#{selectedLogDetail?.id})
+              </DialogTitle>
+              <DialogDescription className="text-gray-400 text-xs">
+                {selectedLogDetail?.actionName || selectedLogDetail?.actionType} — {new Date(selectedLogDetail?.timestamp || '').toLocaleString('th-TH')}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-3 text-xs bg-[#0A0A0F] p-3.5 rounded-xl border border-[#2A2A3E]">
+                <div>
+                  <span className="text-gray-400 block">Actor:</span>
+                  <span className="font-bold text-white">{selectedLogDetail?.user?.username || selectedLogDetail?.actorEmail || `User #${selectedLogDetail?.userId}`}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block">Actor Role:</span>
+                  <span className="font-bold text-amber-400 font-mono">{selectedLogDetail?.actorRole || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block">IP Address:</span>
+                  <span className="font-bold text-blue-400 font-mono">{selectedLogDetail?.ipAddress || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block">Status Code:</span>
+                  <span className="font-bold text-emerald-400 font-mono">{selectedLogDetail?.statusCode || 200}</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-brand-red" />
+                  JSON Details & Changes (PDPA Redacted):
+                </Label>
+                <pre className="p-4 bg-[#0A0A0F] rounded-xl border border-[#2A2A3E] text-xs font-mono text-emerald-400 overflow-x-auto max-h-72 leading-relaxed">
+                  {selectedLogDetail?.detailJson
+                    ? (() => {
+                        try {
+                          return JSON.stringify(JSON.parse(selectedLogDetail.detailJson), null, 2);
+                        } catch {
+                          return selectedLogDetail.detailJson;
+                        }
+                      })()
+                    : JSON.stringify({ before: null, after: null, message: "ไม่มีข้อมูล Payload เพิ่มเติม" }, null, 2)}
+                </pre>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                onClick={() => setSelectedLogDetail(null)}
+                className="bg-[#2A2A3E] hover:bg-gray-700 text-white font-bold text-xs px-5 font-prompt"
+              >
+                ปิดหน้าต่าง
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

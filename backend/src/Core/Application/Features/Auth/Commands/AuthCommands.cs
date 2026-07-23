@@ -41,7 +41,8 @@ public class SignInCommandHandler : IRequestHandler<SignInCommand, AuthResponseD
     public async Task<AuthResponseDto> Handle(SignInCommand request, CancellationToken cancellationToken)
     {
         var users = await _userRepository.GetAllAsync(cancellationToken);
-        var user = users.FirstOrDefault(u => u.Username == request.Dto.Username);
+        var inputUsername = request.Dto.Username?.Trim() ?? string.Empty;
+        var user = users.FirstOrDefault(u => u.Username.Equals(inputUsername, StringComparison.OrdinalIgnoreCase));
         
         if (user == null || !_passwordHasher.Verify(request.Dto.Password, user.PasswordHash))
         {

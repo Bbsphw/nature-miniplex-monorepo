@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using NatureMiniPlex.Application.UnitTests.Common;
@@ -5,9 +8,6 @@ using NatureMiniPlex.Core.Application.Features.Users.Commands;
 using NatureMiniPlex.Core.Application.Interfaces;
 using NatureMiniPlex.Core.Application.Interfaces.Repositories;
 using NatureMiniPlex.Core.Domain.Entities;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace NatureMiniPlex.Application.UnitTests.Users.Commands;
@@ -17,13 +17,17 @@ public class CreateUserCommandHandlerTests : BaseTest
     private readonly CreateUserCommandHandler _handler;
     private readonly Mock<IRepository<User>> _mockUserRepo;
     private readonly Mock<IRepository<Role>> _mockRoleRepo;
+    private readonly Mock<IRepository<ActionLog>> _mockActionLogRepo;
     private readonly Mock<IPasswordHasher> _mockPasswordHasher;
+    private readonly Mock<ICurrentUserService> _mockCurrentUserService;
 
     public CreateUserCommandHandlerTests()
     {
         _mockUserRepo = new Mock<IRepository<User>>();
         _mockRoleRepo = new Mock<IRepository<Role>>();
+        _mockActionLogRepo = new Mock<IRepository<ActionLog>>();
         _mockPasswordHasher = new Mock<IPasswordHasher>();
+        _mockCurrentUserService = new Mock<ICurrentUserService>();
         _mockPasswordHasher.Setup(x => x.Hash(It.IsAny<string>())).Returns("hashed_password");
         
         _mockRoleRepo.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
@@ -32,8 +36,10 @@ public class CreateUserCommandHandlerTests : BaseTest
         _handler = new CreateUserCommandHandler(
             _mockUserRepo.Object,
             _mockRoleRepo.Object,
+            _mockActionLogRepo.Object,
             MockUnitOfWork.Object,
-            _mockPasswordHasher.Object);
+            _mockPasswordHasher.Object,
+            _mockCurrentUserService.Object);
     }
 
     [Fact]

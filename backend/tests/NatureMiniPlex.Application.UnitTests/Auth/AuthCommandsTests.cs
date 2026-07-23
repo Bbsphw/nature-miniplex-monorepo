@@ -90,6 +90,6 @@ public class AuthCommandsTests
         var command = new SignInCommand(new SignInRequestDto { Username = "test@test.com", Password = "wrong" });
 
         // Act & Assert
-        await Assert.ThrowsAsync<Exception>(() => handler.Handle(command, CancellationToken.None));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => handler.Handle(command, CancellationToken.None));
     }
 }

@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+        services.AddScoped<IActionLogRepository, ActionLogRepository>();
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();

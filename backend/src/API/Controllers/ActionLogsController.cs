@@ -1,8 +1,8 @@
+using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using NatureMiniPlex.Core.Application.Features.ActionLogs.Queries;
 using NatureMiniPlex.Infrastructure.Authentication;
-using System.Threading.Tasks;
 
 namespace NatureMiniPlex.API.Controllers;
 
@@ -19,8 +19,8 @@ public class ActionLogsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetActionLogs()
+    public async Task<IActionResult> GetActionLogs([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        return Ok(await _mediator.Send(new GetActionLogsQuery()));
+        return Ok(await _mediator.Send(new GetActionLogsQuery(page, pageSize)));
     }
 }

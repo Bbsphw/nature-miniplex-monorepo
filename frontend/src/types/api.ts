@@ -150,12 +150,27 @@ export interface DailyRevenue { date: string; revenue: number; }
 
 export interface ActionLog {
   id: number;
-  userId: number;
-  actionType: string;
-  entityName: string;
-  entityId: number;
+  logLevel?: string;
+  userId?: number;
+  actorEmail?: string;
+  actorRole?: string;
+  ipAddress?: string;
+  actionName?: string;
+  httpMethod?: string;
+  targetId?: string;
+  targetType?: string;
+  detailJson?: string;
+  userAgent?: string;
+  sessionId?: string;
+  location?: string;
+  statusCode?: number;
   timestamp: string;
   user?: User;
+
+  // Legacy fallback fields
+  actionType?: string;
+  entityName?: string;
+  entityId?: number;
 }
 
 export interface LoginCommand {

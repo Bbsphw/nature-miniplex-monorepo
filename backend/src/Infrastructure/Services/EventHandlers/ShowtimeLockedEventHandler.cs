@@ -21,17 +21,17 @@ public class ShowtimeLockedEventHandler : INotificationHandler<ShowtimeLockedEve
     {
         var actionLog = new ActionLog
         {
-            UserId = 1, // Assume system or context user
-            ActionType = "ShowtimeLocked",
-            EntityName = nameof(Showtime),
-            EntityId = notification.Showtime.Id,
+            LogLevel = "INFO",
+            UserId = 1, // System background event
+            ActionName = "SHOWTIME_LOCKED",
+            HttpMethod = "SYSTEM",
+            TargetType = "TABLE: showtimes",
+            TargetId = notification.Showtime.Id.ToString(),
             Timestamp = DateTime.UtcNow
         };
 
         _dbContext.ActionLogs.Add(actionLog);
         
-        // Assuming we don't want to call SaveChanges here to avoid infinite loops,
-        // it will be saved as part of the current transaction that raised the event
         return Task.CompletedTask;
     }
 }

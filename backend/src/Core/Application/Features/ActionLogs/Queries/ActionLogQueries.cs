@@ -1,30 +1,25 @@
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
+using NatureMiniPlex.Core.Application.Interfaces;
 using NatureMiniPlex.Core.Domain.Entities;
-using NatureMiniPlex.Infrastructure.Persistence;
 
 namespace NatureMiniPlex.Core.Application.Features.ActionLogs.Queries;
 
-public record GetActionLogsQuery : IRequest<IReadOnlyList<ActionLog>>;
+public record GetActionLogsQuery(int Page = 1, int PageSize = 50) : IRequest<IReadOnlyList<ActionLog>>;
 
 public class GetActionLogsQueryHandler : IRequestHandler<GetActionLogsQuery, IReadOnlyList<ActionLog>>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IActionLogRepository _actionLogRepository;
 
-    public GetActionLogsQueryHandler(ApplicationDbContext dbContext)
+    public GetActionLogsQueryHandler(IActionLogRepository actionLogRepository)
     {
-        _dbContext = dbContext;
+        _actionLogRepository = actionLogRepository;
     }
 
     public async Task<IReadOnlyList<ActionLog>> Handle(GetActionLogsQuery request, CancellationToken cancellationToken)
     {
-        return await _dbContext.ActionLogs
-            .Include(a => a.User)
-            .OrderByDescending(a => a.Timestamp)
-            .ToListAsync(cancellationToken);
+        return await _actionLogRepository.GetLogsAsync(request.Page, request.PageSize, cancellationToken);
     }
 }

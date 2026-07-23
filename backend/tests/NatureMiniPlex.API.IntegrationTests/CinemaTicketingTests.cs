@@ -85,7 +85,7 @@ public class CinemaTicketingTests : IClassFixture<CustomWebApplicationFactory>, 
 
         // Check ActionLogs if that entity exists
         var actionLog = await dbContext.Set<ActionLog>()
-            .FirstOrDefaultAsync(l => l.ActionType == "CreateMovie" && l.EntityId == savedMovie.Id);
+            .FirstOrDefaultAsync(l => l.ActionName.Contains("MOVIE") && l.TargetId == savedMovie.Id.ToString());
         if (actionLog != null)
         {
             actionLog.Should().NotBeNull();

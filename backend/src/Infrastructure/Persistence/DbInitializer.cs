@@ -173,10 +173,10 @@ public static class DbInitializer
         await context.SaveChangesAsync();
 
         // 4. Seed Default Admin User
-        var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Username == "admin");
+        string hashedAdminPassword = BCrypt.Net.BCrypt.EnhancedHashPassword("Password123!", 11);
+        var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == "admin");
         if (adminUser == null)
         {
-            string hashedAdminPassword = BCrypt.Net.BCrypt.EnhancedHashPassword("Password123!", 11);
             adminUser = new User
             {
                 Username = "admin",
@@ -189,6 +189,8 @@ public static class DbInitializer
         }
         else
         {
+            adminUser.PasswordHash = hashedAdminPassword;
+            adminUser.Email = "admin@natureminiplex.com";
             adminUser.IsActive = true;
             await context.SaveChangesAsync();
         }
@@ -247,26 +249,32 @@ public static class DbInitializer
             context.ActionLogs.AddRange(
                 new ActionLog
                 {
+                    LogLevel = "INFO",
                     UserId = adminId,
-                    ActionType = "SYSTEM_INITIALIZE",
-                    EntityName = "System",
-                    EntityId = 1,
+                    ActionName = "SYSTEM_INITIALIZE",
+                    HttpMethod = "SYSTEM",
+                    TargetType = "TABLE: system",
+                    TargetId = "1",
                     Timestamp = DateTime.UtcNow.AddMinutes(-30)
                 },
                 new ActionLog
                 {
+                    LogLevel = "INFO",
                     UserId = adminId,
-                    ActionType = "SEED_RBAC_PERMISSIONS",
-                    EntityName = "Permission",
-                    EntityId = 1,
+                    ActionName = "SEED_RBAC_PERMISSIONS",
+                    HttpMethod = "SYSTEM",
+                    TargetType = "TABLE: permissions",
+                    TargetId = "1",
                     Timestamp = DateTime.UtcNow.AddMinutes(-20)
                 },
                 new ActionLog
                 {
+                    LogLevel = "INFO",
                     UserId = adminId,
-                    ActionType = "CREATE_USER",
-                    EntityName = "User",
-                    EntityId = adminId,
+                    ActionName = "CREATE_USER",
+                    HttpMethod = "SYSTEM",
+                    TargetType = "TABLE: users",
+                    TargetId = adminId.ToString(),
                     Timestamp = DateTime.UtcNow.AddMinutes(-10)
                 }
             );

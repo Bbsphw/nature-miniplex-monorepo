@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Security;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using NatureMiniPlex.Application.UnitTests.Common;
@@ -5,11 +10,6 @@ using NatureMiniPlex.Core.Application.Features.Bookings.Commands.CancelBooking;
 using NatureMiniPlex.Core.Application.Interfaces;
 using NatureMiniPlex.Core.Domain.Entities;
 using NatureMiniPlex.Core.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Security;
-using System.Threading;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace NatureMiniPlex.Application.UnitTests.Bookings.Commands.CancelBooking;
@@ -45,8 +45,8 @@ public class CancelBookingCommandHandlerTests : BaseTest
         };
         booking.BookingItems.Add(new BookingItem { ShowtimeId = 1, ItemStatus = ItemStatus.Active });
 
-        MockBookingRepository.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
-                             .ReturnsAsync(new List<Booking> { booking });
+        MockBookingRepository.Setup(x => x.GetBookingWithItemsAsync(bookingId, It.IsAny<CancellationToken>()))
+                             .ReturnsAsync(booking);
                              
         MockShowtimeRepository.Setup(x => x.GetByIdAsync(1, It.IsAny<CancellationToken>()))
                               .ReturnsAsync(new Showtime { Id = 1, IsActive = true });
@@ -74,8 +74,8 @@ public class CancelBookingCommandHandlerTests : BaseTest
             Customer = new Customer { PhoneNumber = "0812345678" }
         };
 
-        MockBookingRepository.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
-                             .ReturnsAsync(new List<Booking> { booking });
+        MockBookingRepository.Setup(x => x.GetBookingWithItemsAsync(bookingId, It.IsAny<CancellationToken>()))
+                             .ReturnsAsync(booking);
 
         var command = new CancelBookingCommand(bookingId, "0999999999"); // Wrong phone number
 

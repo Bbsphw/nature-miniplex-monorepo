@@ -88,10 +88,12 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, int>
         // Record Audit Action Log
         await _actionLogRepository.AddAsync(new ActionLog
         {
+            LogLevel = "INFO",
             UserId = _currentUserService.UserId ?? 1,
-            ActionType = "CREATE_USER",
-            EntityName = nameof(User),
-            EntityId = user.Id,
+            ActionName = "CREATE_USER",
+            HttpMethod = "COMMAND",
+            TargetType = "TABLE: users",
+            TargetId = user.Id.ToString(),
             Timestamp = DateTime.UtcNow
         }, cancellationToken);
 
@@ -163,10 +165,12 @@ public class UpdateUserRolesCommandHandler : IRequestHandler<UpdateUserRolesComm
         // Record Audit Action Log
         await _actionLogRepository.AddAsync(new ActionLog
         {
+            LogLevel = "INFO",
             UserId = _currentUserService.UserId ?? 1,
-            ActionType = "UPDATE_ROLES",
-            EntityName = nameof(User),
-            EntityId = user.Id,
+            ActionName = "UPDATE_ROLES",
+            HttpMethod = "COMMAND",
+            TargetType = "TABLE: users",
+            TargetId = user.Id.ToString(),
             Timestamp = DateTime.UtcNow
         }, cancellationToken);
 
@@ -217,10 +221,12 @@ public class UpdateUserProfileCommandHandler : IRequestHandler<UpdateUserProfile
         // Record Audit Action Log
         await _actionLogRepository.AddAsync(new ActionLog
         {
+            LogLevel = "INFO",
             UserId = _currentUserService.UserId ?? 1,
-            ActionType = "UPDATE_PROFILE",
-            EntityName = nameof(User),
-            EntityId = user.Id,
+            ActionName = "UPDATE_PROFILE",
+            HttpMethod = "COMMAND",
+            TargetType = "TABLE: users",
+            TargetId = user.Id.ToString(),
             Timestamp = DateTime.UtcNow
         }, cancellationToken);
 
@@ -265,10 +271,12 @@ public class UpdateUserStatusCommandHandler : IRequestHandler<UpdateUserStatusCo
         // Record Audit Action Log
         await _actionLogRepository.AddAsync(new ActionLog
         {
+            LogLevel = "INFO",
             UserId = _currentUserService.UserId ?? 1,
-            ActionType = request.IsActive ? "ENABLE_USER" : "DISABLE_USER",
-            EntityName = nameof(User),
-            EntityId = user.Id,
+            ActionName = request.IsActive ? "ENABLE_USER" : "DISABLE_USER",
+            HttpMethod = "COMMAND",
+            TargetType = "TABLE: users",
+            TargetId = user.Id.ToString(),
             Timestamp = DateTime.UtcNow
         }, cancellationToken);
 
@@ -315,7 +323,3 @@ public class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordComman
         return true;
     }
 }
-
-
-
-

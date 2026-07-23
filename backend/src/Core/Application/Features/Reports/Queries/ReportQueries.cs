@@ -25,7 +25,7 @@ public class GetDailyRevenueQueryHandler : IRequestHandler<GetDailyRevenueQuery,
     {
         var bookings = await _bookingRepository.GetBookingsForReportAsync(request.StartDate, request.EndDate, cancellationToken);
         
-        var result = bookings
+        var result = (bookings ?? Enumerable.Empty<NatureMiniPlex.Core.Domain.Entities.Booking>())
             .Where(b => b.Status == NatureMiniPlex.Core.Domain.Enums.BookingStatus.Completed)
             .GroupBy(b => b.BookingTime.Date)
             .Select(g => new DailyRevenueDto(

@@ -1,10 +1,10 @@
+using System.Linq;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Threading.Tasks;
-using System.Linq;
 
 namespace NatureMiniPlex.API.IntegrationTests;
 
@@ -30,11 +30,13 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        var role = roleHeader ?? "User";
+        var role = roleHeader ?? "SYSTEM_ADMIN";
 
         var claims = new[]
         {
-            new Claim(ClaimTypes.Name, "TestUser"),
+            new Claim(ClaimTypes.NameIdentifier, "1"),
+            new Claim("sub", "1"),
+            new Claim(ClaimTypes.Name, "admin"),
             new Claim(ClaimTypes.Role, role)
         };
         var identity = new ClaimsIdentity(claims, AuthenticationScheme);

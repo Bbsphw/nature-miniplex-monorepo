@@ -1,13 +1,14 @@
-using FluentAssertions;
-using Moq;
-using NatureMiniPlex.Application.UnitTests.Common;
-using NatureMiniPlex.Core.Application.Features.Users.Queries;
-using NatureMiniPlex.Core.Application.Interfaces.Repositories;
-using NatureMiniPlex.Core.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentAssertions;
+using Moq;
+using NatureMiniPlex.Application.UnitTests.Common;
+using NatureMiniPlex.Core.Application.Features.Users.Queries;
+using NatureMiniPlex.Core.Application.Interfaces;
+using NatureMiniPlex.Core.Application.Interfaces.Repositories;
+using NatureMiniPlex.Core.Domain.Entities;
 using Xunit;
 
 namespace NatureMiniPlex.Application.UnitTests.Users.Queries;
@@ -17,17 +18,21 @@ public class UserQueriesTests : BaseTest
     private readonly Mock<IRepository<User>> _mockUserRepo;
     private readonly Mock<IRepository<UserRole>> _mockUserRoleRepo;
     private readonly Mock<IRepository<Role>> _mockRoleRepo;
+    private readonly Mock<IPermissionService> _mockPermissionService;
 
     public UserQueriesTests()
     {
         _mockUserRepo = new Mock<IRepository<User>>();
         _mockUserRoleRepo = new Mock<IRepository<UserRole>>();
         _mockRoleRepo = new Mock<IRepository<Role>>();
+        _mockPermissionService = new Mock<IPermissionService>();
 
         _mockUserRoleRepo.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<UserRole>());
         _mockRoleRepo.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Role>());
+        _mockPermissionService.Setup(x => x.GetUserPermissionsAsync(It.IsAny<int>()))
+            .ReturnsAsync(new HashSet<string>());
     }
 
     [Fact]
@@ -36,7 +41,7 @@ public class UserQueriesTests : BaseTest
         // Arrange
         var users = new List<User> { new User { Id = 1, Username = "user1" }, new User { Id = 2, Username = "user2" } };
         _mockUserRepo.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(users);
-        var handler = new GetUsersQueryHandler(_mockUserRepo.Object, _mockUserRoleRepo.Object, _mockRoleRepo.Object);
+        var handler = new GetUsersQueryHandler(_mockUserRepo.Object, _mockUserRoleRepo.Object, _mockRoleRepo.Object, _mockPermissionService.Object);
 
         // Act
         var result = await handler.Handle(new GetUsersQuery(), CancellationToken.None);
@@ -50,7 +55,7 @@ public class UserQueriesTests : BaseTest
     {
         // Arrange
         _mockUserRepo.Setup(x => x.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new User { Id = 1, Username = "user1" });
-        var handler = new GetUserByIdQueryHandler(_mockUserRepo.Object, _mockUserRoleRepo.Object, _mockRoleRepo.Object);
+        var handler = new GetUserByIdQueryHandler(_mockUserRepo.Object, _mockUserRoleRepo.Object, _mockRoleRepo.Object, _mockPermissionService.Object);
 
         // Act
         var result = await handler.Handle(new GetUserByIdQuery(1), CancellationToken.None);
@@ -65,7 +70,7 @@ public class UserQueriesTests : BaseTest
     {
         // Arrange
         _mockUserRepo.Setup(x => x.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
-        var handler = new GetUserByIdQueryHandler(_mockUserRepo.Object, _mockUserRoleRepo.Object, _mockRoleRepo.Object);
+        var handler = new GetUserByIdQueryHandler(_mockUserRepo.Object, _mockUserRoleRepo.Object, _mockRoleRepo.Object, _mockPermissionService.Object);
 
         // Act
         Func<Task> act = async () => await handler.Handle(new GetUserByIdQuery(1), CancellationToken.None);

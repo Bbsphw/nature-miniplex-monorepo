@@ -1,14 +1,14 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using NatureMiniPlex.Application.UnitTests.Common;
 using NatureMiniPlex.Core.Application.Features.Reports.Queries;
 using NatureMiniPlex.Core.Domain.Entities;
 using NatureMiniPlex.Core.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace NatureMiniPlex.Application.UnitTests.Reports.Queries;
@@ -57,8 +57,9 @@ public class ReportQueriesTests : BaseTest
             }
         };
 
-        MockBookingRepository.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
-                             .ReturnsAsync(bookings);
+        MockBookingRepository.Setup(x => x.GetBookingsForReportAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+                             .ReturnsAsync((DateTime start, DateTime end, CancellationToken ct) => 
+                                 bookings.Where(b => b.BookingTime.Date >= start.Date && b.BookingTime.Date <= end.Date).ToList());
 
         var query = new GetDailyRevenueQuery(today, today);
 

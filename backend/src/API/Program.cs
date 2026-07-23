@@ -20,7 +20,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000")
+        policy.SetIsOriginAllowed(_ => true) // Allow all localhost / local network origins for frontend dev
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -84,6 +84,10 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
+// 1. CORS Policy MUST be applied FIRST so all requests (including errors & OPTIONS) carry CORS headers
+app.UseCors("AllowFrontend");
+
+// 2. Exception Handling Middleware
 app.UseMiddleware<NatureMiniPlex.API.Middlewares.ExceptionHandlingMiddleware>();
 
 // Configure the HTTP request pipeline.
@@ -107,12 +111,11 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-app.UseHttpsRedirection();
-
-app.UseCors("AllowFrontend");
-
 app.UseAuthentication();
 app.UseAuthorization();
+
+// 3. Action Logging Middleware
+app.UseMiddleware<NatureMiniPlex.API.Middlewares.ActionLoggingMiddleware>();
 
 app.MapControllers();
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Options;
@@ -26,10 +27,32 @@ public class JwtTokenGenerator : IJwtTokenGenerator
 
         var claims = new List<Claim>
         {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
-            new Claim(ClaimTypes.Role, user.Role.ToString())
+            new Claim(ClaimTypes.Name, user.Username)
         };
+
+        if (!string.IsNullOrEmpty(user.Email))
+        {
+            claims.Add(new Claim(ClaimTypes.Email, user.Email));
+        }
+
+        if (user.CinemaId.HasValue)
+        {
+            claims.Add(new Claim("cinema_id", user.CinemaId.Value.ToString()));
+        }
+
+        if (user.UserRoles != null && user.UserRoles.Any())
+        {
+            foreach (var ur in user.UserRoles)
+            {
+                if (ur.Role != null)
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, ur.Role.Code));
+                }
+            }
+        }
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {

@@ -18,6 +18,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { toast } from '@/store/useToastStore';
 import { confirmModal } from '@/store/useConfirmStore';
 import { Plus, Pencil, Trash2, Loader2, Lock, LockOpen, Clock, CalendarDays, Ticket, Film, Building2, CheckCircle2, Sparkles, Check, AlertTriangle, Search } from 'lucide-react';
@@ -343,147 +344,195 @@ export default function AdminShowtimesPage() {
   const selectedCinema = cinemas.find(c => c.id === form.cinemaId);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-8 rounded-full bg-brand-red" />
-          <h1 className="text-2xl font-bold text-white font-prompt">จัดการรอบฉาย</h1>
+    <PermissionGuard requiredPermissions={['showtimes:read', 'showtimes:create', 'showtimes:update', 'showtimes:cancel', 'showtimes:lock', 'showtime:create']} requireAll={false}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-1.5 h-8 rounded-full bg-brand-red shadow-[0_0_12px_rgba(227,24,55,0.4)]" />
+            <div>
+              <h1 className="text-2xl font-bold text-white font-prompt">จัดการรอบฉายภาพยนตร์</h1>
+              <p className="text-xs text-gray-400">กำหนดรอบฉาย ล็อกรอบฉาย และผูกภาพยนตร์เข้ากับโรงภาพยนตร์ประจำสาขา</p>
+            </div>
+          </div>
+          <PermissionGuard requiredPermission="showtimes:create">
+            <Button onClick={openAdd} className="bg-brand-red hover:bg-brand-red/90 text-white font-bold font-prompt shadow-[0_0_14px_rgba(227,24,55,0.3)] px-5 py-2.5 transition-all">
+              <Plus className="w-4 h-4 mr-2" />เพิ่มรอบฉายใหม่
+            </Button>
+          </PermissionGuard>
         </div>
-        <Button onClick={openAdd} className="bg-brand-red hover:bg-brand-red-dark text-white shadow-lg shadow-brand-red/20 px-5 py-2.5">
-          <Plus className="w-4 h-4 mr-2" />เพิ่มรอบฉายใหม่
-        </Button>
-      </div>
 
-      <div className="rounded-2xl border border-surface-border bg-surface-DEFAULT overflow-hidden">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-brand-red" /></div>
-        ) : !showtimes.length ? (
-          <div className="flex flex-col items-center py-16 text-muted-foreground gap-3">
-            <Clock className="w-12 h-12 text-surface-border" />
-            <p className="text-lg font-medium text-white">ยังไม่มีรอบฉาย</p>
-            <p className="text-sm">กดเพิ่มรอบฉายเพื่อเริ่มต้นจัดการระบบ</p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="border-surface-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground">ภาพยนตร์</TableHead>
-                <TableHead className="text-muted-foreground">โรงหนัง</TableHead>
-                <TableHead className="text-muted-foreground">วันและเวลาฉาย</TableHead>
-                <TableHead className="text-muted-foreground">ราคาตั๋ว</TableHead>
-                <TableHead className="text-muted-foreground">สถานะ</TableHead>
-                <TableHead className="text-right text-muted-foreground">การจัดการ</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedShowtimes.map((st) => {
-                const displayMovieTitle = st.movieTitle || st.movie?.title || movies.find(m => m.id === st.movieId)?.title || `ภาพยนตร์ #${st.movieId}`;
-                const displayCinemaName = st.cinemaName || st.cinema?.name || cinemas.find(c => c.id === st.cinemaId)?.name || (st.cinemaId === 1 ? 'โรงหนังศรีราชา' : 'โรงหนังบางแสน');
-
-                return (
-                  <TableRow key={st.id} className="border-surface-border hover:bg-surface-elevated transition-colors">
-                    <TableCell className="text-white font-medium">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-surface-base border border-surface-border flex items-center justify-center text-brand-red">
-                          <Film className="w-4 h-4" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-semibold">{displayMovieTitle}</span>
-                          {st.isLocked && <span className="text-[10px] text-yellow-500 font-bold tracking-wider">LOCKED</span>}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-muted-foreground/70" />
-                        <span className="font-medium text-white">{displayCinemaName}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <CalendarDays className="w-4 h-4 text-brand-red/80" />
-                        <span className="text-white font-mono text-sm">{formatDateTime(st.showDateTime)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-brand-red font-semibold text-base">฿{(st.ticketPrice ?? 0).toFixed(0)}</TableCell>
-                    <TableCell>
-                      <label className="inline-flex items-center cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={Boolean(st.isActive)}
-                          onChange={() => toggleIsActive(st)}
-                          disabled={updateMutation.isPending || Boolean(st.isLocked)}
-                        />
-                        <div className="relative w-11 h-6 bg-surface-base rounded-full peer peer-checked:bg-brand-red border border-surface-border transition-colors after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:border-surface-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5 group-hover:after:scale-95 disabled:opacity-50"></div>
-                        <span className={`ml-3 text-sm font-medium ${st.isActive ? 'text-brand-red' : 'text-muted-foreground'}`}>
-                          {st.isActive ? 'เปิดจอง' : 'ปิดจอง'}
-                        </span>
-                      </label>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="ghost"
-                          onClick={() => handleLockToggle(st)}
-                          className={st.isLocked ? 'text-yellow-400 hover:bg-yellow-500/10' : 'text-muted-foreground hover:text-yellow-400'}
-                          title={st.isLocked ? 'ปลดล็อค' : 'ล็อครอบฉาย'}
-                        >
-                          {st.isLocked ? <Lock className="w-4 h-4" /> : <LockOpen className="w-4 h-4" />}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(st)}
-                          className="text-muted-foreground hover:text-white hover:bg-surface-elevated">
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        {/* Commented out delete button as requested: status toggle controls showtime booking availability */}
-                        {/* <Button size="sm" variant="ghost"
-                          onClick={() => handleDeleteClick(st)}
-                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-                          <Trash2 className="w-4 h-4" />
-                        </Button> */}
-                      </div>
-                    </TableCell>
+        <div className="rounded-2xl border border-[#2A2A3E] bg-[#1C1C27] overflow-hidden shadow-xl min-h-[480px] flex flex-col justify-between">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-24"><Loader2 className="w-8 h-8 animate-spin text-brand-red" /></div>
+          ) : !showtimes.length ? (
+            <div className="flex flex-col items-center py-24 text-gray-400 gap-3">
+              <Clock className="w-12 h-12 text-gray-600" />
+              <p className="text-lg font-medium text-white font-prompt">ยังไม่มีรอบฉายในระบบ</p>
+              <p className="text-xs text-gray-500 font-prompt">กดปุ่มเพิ่มรอบฉายใหม่เพื่อเริ่มต้นกำหนดตารางฉาย</p>
+            </div>
+          ) : (
+            <div className="flex-1">
+              <Table>
+                <TableHeader className="bg-[#0A0A0F]/60 border-b border-[#2A2A3E]">
+                  <TableRow className="border-[#2A2A3E] hover:bg-transparent">
+                    <TableHead className="text-gray-400 font-prompt">ภาพยนตร์</TableHead>
+                    <TableHead className="text-gray-400 font-prompt">โรงภาพยนตร์</TableHead>
+                    <TableHead className="text-gray-400 font-prompt">วันและเวลาฉาย</TableHead>
+                    <TableHead className="text-gray-400 font-prompt">ราคาตั๋ว</TableHead>
+                    <TableHead className="text-gray-400 font-prompt">สถานะเปิดจอง</TableHead>
+                    <PermissionGuard requiredPermissions={['showtimes:update', 'showtimes:lock', 'showtimes:cancel']} requireAll={false}>
+                      <TableHead className="text-right text-gray-400 font-prompt">การจัดการ</TableHead>
+                    </PermissionGuard>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
+                </TableHeader>
+                <TableBody>
+                  {paginatedShowtimes.map((st) => {
+                    const displayMovieTitle = st.movieTitle || st.movie?.title || movies.find(m => m.id === st.movieId)?.title || `ภาพยนตร์ #${st.movieId}`;
+                    const displayCinemaName = st.cinemaName || st.cinema?.name || cinemas.find(c => c.id === st.cinemaId)?.name || (st.cinemaId === 1 ? 'โรงหนังศรีราชา' : 'โรงหนังบางแสน');
 
-        {/* Shadcn UI Pagination */}
-        {totalPages > 1 && (
-          <div className="p-4 border-t border-surface-border bg-surface-DEFAULT flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-muted-foreground">
-              แสดงรอบฉาย {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, showtimes.length)} จากทั้งหมด {showtimes.length} รอบ
-            </span>
-            <Pagination className="w-auto mx-0">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                  />
-                </PaginationItem>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <PaginationItem key={page}>
-                    <PaginationLink
-                      isActive={currentPage === page}
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </PaginationLink>
+                    return (
+                      <TableRow key={st.id} className="border-[#2A2A3E] hover:bg-gray-800/40 transition-colors">
+                        <TableCell className="text-white font-medium">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-[#0A0A0F] border border-[#2A2A3E] flex items-center justify-center text-brand-red">
+                              <Film className="w-4 h-4" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-white font-prompt">{displayMovieTitle}</span>
+                              {st.isLocked && <span className="text-[10px] text-amber-400 font-bold tracking-wider font-mono">LOCKED (ล็อกรอบ)</span>}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-gray-400">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-blue-400" />
+                            <span className="font-medium text-white text-xs font-prompt">{displayCinemaName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-gray-400">
+                          <div className="flex items-center gap-1.5">
+                            <CalendarDays className="w-4 h-4 text-brand-red" />
+                            <span className="text-white font-mono text-xs">{formatDateTime(st.showDateTime)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-brand-red font-bold font-mono text-base">฿{(st.ticketPrice ?? 0).toFixed(0)}</TableCell>
+                        <TableCell>
+                          {/* Premium Cinema Segmented Status Card with PermissionGuard */}
+                          <PermissionGuard requiredPermission="showtimes:update" mode="disable">
+                            <button
+                              type="button"
+                              aria-pressed={Boolean(st.isActive)}
+                              onClick={() => toggleIsActive(st)}
+                              disabled={updateMutation.isPending || Boolean(st.isLocked)}
+                              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold font-prompt transition-all ${
+                                st.isActive
+                                  ? 'bg-brand-red/15 border-brand-red text-brand-red shadow-[0_0_10px_rgba(227,24,55,0.2)]'
+                                  : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:border-gray-600'
+                              }`}
+                            >
+                              {st.isActive ? (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-brand-red" />
+                                  <span>เปิดจองปกติ</span>
+                                </>
+                              ) : (
+                                <>
+                                  <AlertTriangle className="w-3.5 h-3.5 text-gray-500" />
+                                  <span>ปิดจองชั่วคราว</span>
+                                </>
+                              )}
+                            </button>
+                          </PermissionGuard>
+                        </TableCell>
+                        <PermissionGuard requiredPermissions={['showtimes:update', 'showtimes:lock', 'showtimes:cancel']} requireAll={false}>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <PermissionGuard requiredPermission="showtimes:lock">
+                                <Button size="sm" variant="ghost"
+                                  onClick={() => handleLockToggle(st)}
+                                  className={st.isLocked ? 'text-amber-400 hover:bg-amber-950/40 text-xs' : 'text-gray-400 hover:text-amber-400 hover:bg-gray-800 text-xs'}
+                                  title={st.isLocked ? 'ปลดล็อค' : 'ล็อครอบฉาย'}
+                                >
+                                  {st.isLocked ? <Lock className="w-3.5 h-3.5 mr-1 text-amber-400" /> : <LockOpen className="w-3.5 h-3.5 mr-1" />}
+                                  <span>{st.isLocked ? 'ปลดล็อก' : 'ล็อก'}</span>
+                                </Button>
+                              </PermissionGuard>
+                              <PermissionGuard requiredPermission="showtimes:update">
+                                <Button size="sm" variant="ghost" onClick={() => openEdit(st)}
+                                  className="text-gray-400 hover:text-white hover:bg-gray-800 text-xs">
+                                  <Pencil className="w-3.5 h-3.5 mr-1" />
+                                  <span>แก้ไข</span>
+                                </Button>
+                              </PermissionGuard>
+                              <PermissionGuard requiredPermission="showtimes:cancel">
+                                <Button size="sm" variant="ghost"
+                                  onClick={() => handleDeleteClick(st)}
+                                  className="text-red-400 hover:text-red-300 hover:bg-red-950/40 text-xs">
+                                  <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                  <span>ยกเลิก</span>
+                                </Button>
+                              </PermissionGuard>
+                            </div>
+                          </TableCell>
+                        </PermissionGuard>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Shadcn UI Pagination with smooth event handlers */}
+          {totalPages > 1 && (
+            <div className="p-4 border-t border-[#2A2A3E] bg-[#0A0A0F]/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <span className="text-xs text-gray-400">
+                แสดงรอบฉาย {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, showtimes.length)} จากทั้งหมด {showtimes.length} รอบ
+              </span>
+              <Pagination className="w-auto mx-0">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage((p) => Math.max(1, p - 1));
+                      }}
+                      disabled={currentPage === 1}
+                      className="border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer"
+                    />
                   </PaginationItem>
-                ))}
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        )}
-      </div>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        type="button"
+                        isActive={currentPage === page}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(page);
+                        }}
+                        className={currentPage === page ? 'bg-brand-red text-white border-brand-red shadow-[0_0_10px_rgba(227,24,55,0.3)] cursor-default' : 'border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer'}
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage((p) => Math.min(totalPages, p + 1));
+                      }}
+                      disabled={currentPage === totalPages}
+                      className="border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer"
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </div>
 
       {/* Dialog for Adding / Editing Showtime */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -709,18 +758,36 @@ export default function AdminShowtimesPage() {
                 </div>
               </div>
 
-              <div className="space-y-2 flex flex-col justify-end">
-                <div className="h-11 flex items-center justify-between px-4 rounded-xl border border-surface-border bg-surface-base">
-                  <span className="text-sm font-medium text-white">เปิดให้จองตั๋วทันที</span>
-                  <label className="inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="sr-only peer"
-                      checked={Boolean(form.isActive)}
-                      onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-                    />
-                    <div className="relative w-11 h-6 bg-surface-elevated rounded-full peer peer-checked:bg-brand-red border border-surface-border transition-colors after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:border-surface-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
-                  </label>
+              <div className="space-y-1.5 col-span-2">
+                <Label className="text-xs text-gray-300 font-prompt">สถานะการเปิดให้จองตั๋ว:</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    aria-selected={Boolean(form.isActive)}
+                    onClick={() => setForm((f) => ({ ...f, isActive: true }))}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all text-xs font-bold font-prompt ${
+                      form.isActive
+                        ? 'bg-brand-red/20 border-brand-red text-brand-red shadow-[0_0_12px_rgba(227,24,55,0.25)]'
+                        : 'bg-[#0A0A0F] border-[#2A2A3E] text-gray-500 hover:border-gray-700'
+                    }`}
+                  >
+                    <CheckCircle2 className={`w-4 h-4 ${form.isActive ? 'text-brand-red' : 'text-gray-600'}`} />
+                    <span>เปิดให้จองตั๋วทันที</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-selected={!form.isActive}
+                    onClick={() => setForm((f) => ({ ...f, isActive: false }))}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all text-xs font-bold font-prompt ${
+                      !form.isActive
+                        ? 'bg-red-500/20 border-red-500 text-red-400 shadow-[0_0_12px_rgba(239,68,68,0.25)]'
+                        : 'bg-[#0A0A0F] border-[#2A2A3E] text-gray-500 hover:border-gray-700'
+                    }`}
+                  >
+                    <AlertTriangle className={`w-4 h-4 ${!form.isActive ? 'text-red-400' : 'text-gray-600'}`} />
+                    <span>ปิดจองชั่วคราว</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -760,5 +827,6 @@ export default function AdminShowtimesPage() {
         </DialogContent>
       </Dialog>
     </div>
+  </PermissionGuard>
   );
 }

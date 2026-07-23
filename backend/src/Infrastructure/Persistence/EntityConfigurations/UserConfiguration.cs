@@ -11,16 +11,15 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasKey(u => u.Id);
         builder.Property(u => u.Username).IsRequired().HasMaxLength(50).IsUnicode(false);
         builder.Property(u => u.PasswordHash).IsRequired().HasMaxLength(255).IsUnicode(false);
-        
-        builder.Property(u => u.Role)
-            .IsRequired()
-            .HasConversion<string>()
-            .HasMaxLength(20)
-            .IsUnicode(false);
-            
+        builder.Property(u => u.Email).HasMaxLength(100).IsUnicode(false);
         builder.Property(u => u.IsActive).HasDefaultValue(true);
 
+        builder.HasOne(u => u.Cinema)
+            .WithMany()
+            .HasForeignKey(u => u.CinemaId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(u => u.Username).IsUnique();
-        builder.HasQueryFilter(u => u.IsActive);
     }
 }
+

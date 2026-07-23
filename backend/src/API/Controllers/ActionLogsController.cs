@@ -1,13 +1,14 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using NatureMiniPlex.Core.Application.Features.ActionLogs.Queries;
+using NatureMiniPlex.Infrastructure.Authentication;
 using System.Threading.Tasks;
 
 namespace NatureMiniPlex.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Microsoft.AspNetCore.Authorization.Authorize(Roles = "Owner")]
+[HasPermission("users:manage")]
 public class ActionLogsController : ControllerBase
 {
     private readonly IMediator _mediator;

@@ -36,7 +36,7 @@ public class CancelBookingBySeatCommandHandler : IRequestHandler<CancelBookingBy
         var bookedItems = await _bookingRepository.GetBookedSeatsForShowtimeAsync(request.ShowtimeId, cancellationToken);
         var targetItem = bookedItems.FirstOrDefault(b => b.SeatId == request.SeatId);
 
-        if (targetItem == null) throw new Exception("ไม่พบรายการจองสำหรับที่นั่งนี้");
+        if (targetItem == null) throw new System.Collections.Generic.KeyNotFoundException("ไม่พบรายการจองสำหรับที่นั่งนี้");
 
         var customerPhone = targetItem.Booking?.Customer?.PhoneNumber?.Trim() ?? string.Empty;
         var requestPhone = request.PhoneNumber?.Trim() ?? string.Empty;
@@ -44,9 +44,9 @@ public class CancelBookingBySeatCommandHandler : IRequestHandler<CancelBookingBy
         var cleanCustomerPhone = new string(customerPhone.Where(char.IsDigit).ToArray());
         var cleanRequestPhone = new string(requestPhone.Where(char.IsDigit).ToArray());
 
-        if (string.IsNullOrEmpty(cleanCustomerPhone) || !string.Equals(cleanCustomerPhone, cleanRequestPhone, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(cleanCustomerPhone) || string.IsNullOrEmpty(cleanRequestPhone) || !string.Equals(cleanCustomerPhone, cleanRequestPhone, StringComparison.OrdinalIgnoreCase))
         {
-            throw new Exception($"เบอร์โทรศัพท์ไม่ตรงกับผู้จองที่นั่งนี้ (ในระบบ: {customerPhone}, เบอร์ที่คุณกรอก: {requestPhone})");
+            throw new System.Security.SecurityException($"เบอร์โทรศัพท์ยืนยันตัวตนไม่ถูกต้อง ไม่ตรงกับเบอร์ที่ใช้จองที่นั่งนี้");
         }
 
         targetItem.ItemStatus = ItemStatus.Canceled;

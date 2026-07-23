@@ -1,9 +1,11 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using NatureMiniPlex.Core.Application.Interfaces.Repositories;
+using Microsoft.EntityFrameworkCore;
 using NatureMiniPlex.Core.Domain.Entities;
+using NatureMiniPlex.Infrastructure.Persistence;
 
 namespace NatureMiniPlex.Core.Application.Features.ActionLogs.Queries;
 
@@ -11,15 +13,18 @@ public record GetActionLogsQuery : IRequest<IReadOnlyList<ActionLog>>;
 
 public class GetActionLogsQueryHandler : IRequestHandler<GetActionLogsQuery, IReadOnlyList<ActionLog>>
 {
-    private readonly IRepository<ActionLog> _actionLogRepository;
+    private readonly ApplicationDbContext _dbContext;
 
-    public GetActionLogsQueryHandler(IRepository<ActionLog> actionLogRepository)
+    public GetActionLogsQueryHandler(ApplicationDbContext dbContext)
     {
-        _actionLogRepository = actionLogRepository;
+        _dbContext = dbContext;
     }
 
     public async Task<IReadOnlyList<ActionLog>> Handle(GetActionLogsQuery request, CancellationToken cancellationToken)
     {
-        return await _actionLogRepository.GetAllAsync(cancellationToken);
+        return await _dbContext.ActionLogs
+            .Include(a => a.User)
+            .OrderByDescending(a => a.Timestamp)
+            .ToListAsync(cancellationToken);
     }
 }

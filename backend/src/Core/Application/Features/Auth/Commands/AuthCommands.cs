@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,7 +8,6 @@ using NatureMiniPlex.Core.Application.Interfaces;
 using NatureMiniPlex.Core.Application.Interfaces.Repositories;
 using NatureMiniPlex.Core.Domain.Entities;
 using NatureMiniPlex.Core.Application.DTOs.Auth;
-using NatureMiniPlex.Core.Domain.Enums;
 
 namespace NatureMiniPlex.Core.Application.Features.Auth.Commands;
 
@@ -16,14 +16,26 @@ public record SignInCommand(SignInRequestDto Dto) : IRequest<AuthResponseDto>;
 public class SignInCommandHandler : IRequestHandler<SignInCommand, AuthResponseDto>
 {
     private readonly IRepository<User> _userRepository;
+    private readonly IRepository<UserRole> _userRoleRepository;
+    private readonly IRepository<Role> _roleRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly IPermissionService _permissionService;
 
-    public SignInCommandHandler(IRepository<User> userRepository, IPasswordHasher passwordHasher, IJwtTokenGenerator jwtTokenGenerator)
+    public SignInCommandHandler(
+        IRepository<User> userRepository,
+        IRepository<UserRole> userRoleRepository,
+        IRepository<Role> roleRepository,
+        IPasswordHasher passwordHasher,
+        IJwtTokenGenerator jwtTokenGenerator,
+        IPermissionService permissionService)
     {
         _userRepository = userRepository;
+        _userRoleRepository = userRoleRepository;
+        _roleRepository = roleRepository;
         _passwordHasher = passwordHasher;
         _jwtTokenGenerator = jwtTokenGenerator;
+        _permissionService = permissionService;
     }
 
     public async Task<AuthResponseDto> Handle(SignInCommand request, CancellationToken cancellationToken)
@@ -33,8 +45,25 @@ public class SignInCommandHandler : IRequestHandler<SignInCommand, AuthResponseD
         
         if (user == null || !_passwordHasher.Verify(request.Dto.Password, user.PasswordHash))
         {
-            throw new Exception("Invalid username or password"); // In real app use custom exceptions
+            throw new UnauthorizedAccessException("Invalid username or password");
         }
+
+        var permissionsSet = await _permissionService.GetUserPermissionsAsync(user.Id);
+        var permissionsList = permissionsSet.ToList();
+        
+        // Fetch user roles dynamically from repository
+        var allUserRoles = await _userRoleRepository.GetAllAsync(cancellationToken);
+        var allRoles = await _roleRepository.GetAllAsync(cancellationToken);
+
+        var myRoleIds = allUserRoles.Where(ur => ur.UserId == user.Id).Select(ur => ur.RoleId).ToList();
+        var userRoleCodes = allRoles.Where(r => myRoleIds.Contains(r.Id)).Select(r => r.Code).ToList();
+        
+        if (!userRoleCodes.Any() && user.Username.Equals("admin", StringComparison.OrdinalIgnoreCase))
+        {
+            userRoleCodes.Add("SYSTEM_ADMIN");
+        }
+
+        string primaryRole = userRoleCodes.FirstOrDefault() ?? "CUSTOMER";
 
         var token = _jwtTokenGenerator.GenerateToken(user);
         
@@ -42,9 +71,10 @@ public class SignInCommandHandler : IRequestHandler<SignInCommand, AuthResponseD
         {
             UserId = user.Id,
             Username = user.Username,
-            Role = user.Role.ToString(),
+            Role = primaryRole,
+            Roles = userRoleCodes,
+            Permissions = permissionsList,
             AccessToken = token
         };
     }
 }
-

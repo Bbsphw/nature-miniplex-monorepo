@@ -50,3 +50,4 @@ pnpm-debug.log*
 logs/
 tmp/
 temp/
+.fake

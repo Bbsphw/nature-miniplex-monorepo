@@ -1,5 +1,4 @@
 using NatureMiniPlex.Core.Domain.Entities;
-using NatureMiniPlex.Core.Domain.Enums;
 using Xunit;
 
 namespace NatureMiniPlex.Domain.UnitTests.Entities;
@@ -15,14 +14,18 @@ public class UserTests
             Id = 1,
             Username = "admin@example.com",
             PasswordHash = "hashed_password",
-            Role = UserRole.Owner,
+            Email = "admin@example.com",
+            CinemaId = 2,
             IsActive = true
         };
 
         // Assert
         Assert.Equal("admin@example.com", user.Username);
         Assert.Equal("hashed_password", user.PasswordHash);
-        Assert.Equal(UserRole.Owner, user.Role);
+        Assert.Equal("admin@example.com", user.Email);
+        Assert.Equal(2, user.CinemaId);
         Assert.True(user.IsActive);
+        Assert.NotNull(user.UserRoles);
+        Assert.NotNull(user.ActionLogs);
     }
 }

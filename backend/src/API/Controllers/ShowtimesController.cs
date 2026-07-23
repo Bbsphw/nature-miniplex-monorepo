@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using NatureMiniPlex.Core.Application.Features.Showtimes.Commands.CreateShowtime;
 using NatureMiniPlex.Core.Application.Features.Showtimes.Commands.LockShowtime;
+using NatureMiniPlex.Infrastructure.Authentication;
 
 namespace NatureMiniPlex.API.Controllers;
 
@@ -38,7 +39,7 @@ public class ShowtimesController : ControllerBase
     }
 
     [HttpPost]
-    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Owner")]
+    [HasPermission("showtime:create")]
     public async Task<IActionResult> CreateShowtime([FromBody] CreateShowtimeCommand command)
     {
         var result = await _mediator.Send(command);
@@ -46,7 +47,7 @@ public class ShowtimesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Owner")]
+    [HasPermission("showtime:create")]
     public async Task<IActionResult> UpdateShowtime(int id, [FromBody] NatureMiniPlex.Core.Application.Features.Showtimes.Commands.UpdateShowtime.UpdateShowtimeCommand command)
     {
         if (id != command.Id) return BadRequest("ID mismatch");
@@ -55,7 +56,7 @@ public class ShowtimesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Owner")]
+    [HasPermission("showtime:create")]
     public async Task<IActionResult> DeleteShowtime(int id)
     {
         await _mediator.Send(new NatureMiniPlex.Core.Application.Features.Showtimes.Commands.DeleteShowtime.DeleteShowtimeCommand(id));
@@ -63,7 +64,7 @@ public class ShowtimesController : ControllerBase
     }
 
     [HttpPatch("{id}/lock")]
-    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Owner")]
+    [HasPermission("showtime:create")]
     public async Task<IActionResult> LockShowtime(int id)
     {
         var result = await _mediator.Send(new LockShowtimeCommand(id));

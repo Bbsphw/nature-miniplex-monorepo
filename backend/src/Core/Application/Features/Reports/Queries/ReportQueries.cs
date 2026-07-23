@@ -23,17 +23,16 @@ public class GetDailyRevenueQueryHandler : IRequestHandler<GetDailyRevenueQuery,
 
     public async Task<List<DailyRevenueDto>> Handle(GetDailyRevenueQuery request, CancellationToken cancellationToken)
     {
-        var bookings = await _bookingRepository.GetAllAsync(cancellationToken);
+        var bookings = await _bookingRepository.GetBookingsForReportAsync(request.StartDate, request.EndDate, cancellationToken);
         
-        var completedBookings = bookings.Where(b => b.Status == NatureMiniPlex.Core.Domain.Enums.BookingStatus.Completed
-            && b.BookingTime.Date >= request.StartDate.Date 
-            && b.BookingTime.Date <= request.EndDate.Date);
-
-        var result = completedBookings
+        var result = bookings
+            .Where(b => b.Status == NatureMiniPlex.Core.Domain.Enums.BookingStatus.Completed)
             .GroupBy(b => b.BookingTime.Date)
             .Select(g => new DailyRevenueDto(
                 g.Key, 
-                g.SelectMany(b => b.BookingItems).Where(i => i.ItemStatus == NatureMiniPlex.Core.Domain.Enums.ItemStatus.Active).Sum(i => i.Price)
+                g.SelectMany(b => b.BookingItems ?? Enumerable.Empty<NatureMiniPlex.Core.Domain.Entities.BookingItem>())
+                 .Where(i => i.ItemStatus == NatureMiniPlex.Core.Domain.Enums.ItemStatus.Active)
+                 .Sum(i => i.Price)
             ))
             .OrderBy(r => r.Date)
             .ToList();

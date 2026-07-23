@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using NatureMiniPlex.Core.Application.Features.Reports.Queries;
+using NatureMiniPlex.Infrastructure.Authentication;
 using System;
 using System.Threading.Tasks;
 
@@ -8,7 +9,7 @@ namespace NatureMiniPlex.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Microsoft.AspNetCore.Authorization.Authorize(Roles = "Owner")]
+[HasPermission("reports:read")]
 public class ReportsController : ControllerBase
 {
     private readonly IMediator _mediator;

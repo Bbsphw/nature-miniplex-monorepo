@@ -42,6 +42,18 @@ public class ExceptionHandlingMiddleware
             title = "ข้อมูลไม่ถูกต้องตามเงื่อนไข";
             detail = string.Join("; ", validationException.Errors);
         }
+        else if (exception is UnauthorizedAccessException)
+        {
+            statusCode = StatusCodes.Status401Unauthorized;
+            title = "ไม่มีสิทธิ์เข้าถึงระบบ";
+            detail = exception.Message;
+        }
+        else if (exception is System.Security.SecurityException)
+        {
+            statusCode = StatusCodes.Status403Forbidden;
+            title = "ถูกปฏิเสธสิทธิ์ในการทำรายการ (Forbidden)";
+            detail = exception.Message;
+        }
         else if (exception is NatureMiniPlex.Core.Domain.Exceptions.DomainException domainException)
         {
             statusCode = StatusCodes.Status422UnprocessableEntity;
@@ -64,12 +76,13 @@ public class ExceptionHandlingMiddleware
         {
             statusCode = StatusCodes.Status409Conflict;
             title = "เกิดข้อขัดแย้งในฐานข้อมูล";
-            detail = "เกิดข้อขัดแย้งในฐานข้อมูล ข้อมูลนี้อาจถูกจองหรือแก้ไขไปแล้ว";
+            detail = $"[DbUpdateException] {dbUpdateEx.InnerException?.Message ?? dbUpdateEx.Message}";
             if (dbUpdateEx.InnerException != null && dbUpdateEx.InnerException.Message.Contains("IX_BookingItem_Showtime_Seat_Active"))
             {
                 detail = "ที่นั่งบางรายการที่ท่านเลือกถูกจองไปแล้วโดยลูกค้ารายอื่น";
             }
         }
+
         else
         {
             statusCode = StatusCodes.Status500InternalServerError;

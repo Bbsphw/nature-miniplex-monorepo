@@ -4,7 +4,6 @@ import './globals.css';
 import { Providers } from '@/lib/providers';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import { Toaster } from 'sonner';
 import { ToastContainer } from '@/components/ui/toast';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
@@ -41,17 +40,6 @@ export default function RootLayout({
           <Footer />
           <ConfirmModal />
           <ToastContainer position="bottom-right" />
-          <Toaster
-            richColors
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: '#1C1C27',
-                border: '1px solid #2A2A3E',
-                color: '#FFFFFF',
-              },
-            }}
-          />
         </Providers>
       </body>
     </html>

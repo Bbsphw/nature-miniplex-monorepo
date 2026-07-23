@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/axios';
-import { toast } from 'sonner';
+import { toast } from '@/store/useToastStore';
 import axios from 'axios';
 import type { CreateUserCommand } from '@/types/api';
 
@@ -14,6 +14,7 @@ export function useCreateUser() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['users'] });
+      void queryClient.invalidateQueries({ queryKey: ['action-logs'] });
       toast.success('สร้างผู้ใช้สำเร็จ');
     },
     onError: (error) => {

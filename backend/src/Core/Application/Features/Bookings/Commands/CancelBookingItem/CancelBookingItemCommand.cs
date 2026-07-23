@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -16,12 +17,18 @@ public class CancelBookingItemCommandHandler : IRequestHandler<CancelBookingItem
     private readonly IBookingRepository _bookingRepository;
     private readonly IShowtimeRepository _showtimeRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
 
-    public CancelBookingItemCommandHandler(IBookingRepository bookingRepository, IShowtimeRepository showtimeRepository, IUnitOfWork unitOfWork)
+    public CancelBookingItemCommandHandler(
+        IBookingRepository bookingRepository,
+        IShowtimeRepository showtimeRepository,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService)
     {
         _bookingRepository = bookingRepository;
         _showtimeRepository = showtimeRepository;
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
     }
 
     public async Task<bool> Handle(CancelBookingItemCommand request, CancellationToken cancellationToken)
@@ -29,20 +36,45 @@ public class CancelBookingItemCommandHandler : IRequestHandler<CancelBookingItem
         // Use GetBookingWithItemsAsync so that Customer navigation property is included
         var booking = await _bookingRepository.GetBookingWithItemsAsync(request.BookingId, cancellationToken);
 
-        if (booking == null) throw new Exception("Booking not found.");
-
-        // Normalize phone numbers (strip non-digit chars) for a robust comparison
-        var customerPhone = new string((booking.Customer?.PhoneNumber ?? string.Empty).Where(char.IsDigit).ToArray());
-        var requestPhone  = new string((request.PhoneNumber ?? string.Empty).Where(char.IsDigit).ToArray());
-
-        if (string.IsNullOrEmpty(customerPhone) || customerPhone != requestPhone)
-            throw new Exception("Phone number does not match the booking owner.");
+        if (booking == null)
+            throw new KeyNotFoundException($"Booking with ID '{request.BookingId}' was not found.");
 
         var item = booking.BookingItems?.FirstOrDefault(i => i.Id == request.BookingItemId);
-        if (item == null) throw new Exception("Booking item not found.");
+        if (item == null)
+            throw new KeyNotFoundException($"Booking item with ID '{request.BookingItemId}' was not found.");
 
-        var showtime = await _showtimeRepository.GetByIdAsync(item.ShowtimeId, cancellationToken);
-        if (showtime != null && showtime.IsLocked) throw new Exception("Showtime is locked. Cannot cancel ticket.");
+        // =========================================================================
+        // ROW-LEVEL SECURITY (RLS) & OWNERSHIP VALIDATION
+        // =========================================================================
+
+        bool hasAdminCancel = await _currentUserService.HasPermissionAsync("bookings:cancel:any");
+        if (!hasAdminCancel)
+        {
+            bool hasManagerCancel = await _currentUserService.HasPermissionAsync("bookings:cancel:assigned_cinema");
+            if (hasManagerCancel)
+            {
+                var showtime = await _showtimeRepository.GetByIdAsync(item.ShowtimeId, cancellationToken);
+                if (showtime != null && _currentUserService.CinemaId.HasValue && showtime.CinemaId != _currentUserService.CinemaId.Value)
+                {
+                    throw new SecurityException("Cinema Managers can only cancel bookings for their assigned cinema.");
+                }
+            }
+            else
+            {
+                // External Customer Identity Verification: Phone Number must match the booking owner
+                var customerPhone = new string((booking.Customer?.PhoneNumber ?? string.Empty).Where(char.IsDigit).ToArray());
+                var requestPhone  = new string((request.PhoneNumber ?? string.Empty).Where(char.IsDigit).ToArray());
+
+                if (string.IsNullOrEmpty(customerPhone) || string.IsNullOrEmpty(requestPhone) || customerPhone != requestPhone)
+                {
+                    throw new SecurityException("เบอร์โทรศัพท์ยืนยันตัวตนไม่ถูกต้อง ไม่ตรงกับเบอร์ที่ใช้จองตั๋วใบนี้");
+                }
+            }
+        }
+
+        var showtimeEntity = await _showtimeRepository.GetByIdAsync(item.ShowtimeId, cancellationToken);
+        if (showtimeEntity != null && showtimeEntity.IsLocked)
+            throw new NatureMiniPlex.Core.Domain.Exceptions.DomainException("Showtime is locked. Cannot cancel ticket.");
 
         item.ItemStatus = ItemStatus.Canceled;
 

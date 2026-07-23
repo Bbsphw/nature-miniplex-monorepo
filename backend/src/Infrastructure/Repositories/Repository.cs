@@ -45,4 +45,11 @@ public class Repository<T> : IRepository<T> where T : class
         _dbSet.Remove(entity);
         return Task.CompletedTask;
     }
+
+    public virtual Task DeleteRangeAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default)
+    {
+        _dbSet.RemoveRange(entities);
+        return Task.CompletedTask;
+    }
 }
+

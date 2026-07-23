@@ -26,7 +26,8 @@ import {
 } from '@/components/ui/table';
 import { toast } from '@/store/useToastStore';
 import { confirmModal } from '@/store/useConfirmStore';
-import { Plus, Pencil, Trash2, Loader2, Film } from 'lucide-react';
+import { PermissionGuard } from '@/components/auth/PermissionGuard';
+import { Plus, Pencil, Trash2, Loader2, Film, CheckCircle2, AlertTriangle, Calendar, DollarSign } from 'lucide-react';
 
 import { formatDate } from '@/lib/utils';
 
@@ -103,7 +104,6 @@ export default function AdminMoviesPage() {
             },
             {
               onSuccess: () => {
-                // Toast notification ONLY when action is confirmed
                 toast.success(`เปลี่ยนสถานะ "${movie.title}" เป็น ${statusText} เรียบร้อยแล้ว`);
                 resolve();
               },
@@ -129,7 +129,6 @@ export default function AdminMoviesPage() {
         return new Promise<void>((resolve, reject) => {
           deleteMutation.mutate(movie.id, {
             onSuccess: () => {
-              // Toast notification ONLY when deletion is confirmed
               toast.success(`ลบภาพยนตร์ "${movie.title}" เรียบร้อยแล้ว`);
               resolve();
             },
@@ -176,218 +175,309 @@ export default function AdminMoviesPage() {
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-8 rounded-full bg-brand-red" />
-          <h1 className="text-2xl font-bold text-white font-prompt">จัดการภาพยนตร์</h1>
+    <PermissionGuard requiredPermissions={['movies:read', 'movies:manage', 'movies:create', 'movies:update', 'movies:delete', 'showtime:create']} requireAll={false}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-1.5 h-8 rounded-full bg-brand-red shadow-[0_0_12px_rgba(227,24,55,0.4)]" />
+            <div>
+              <h1 className="text-2xl font-bold text-white font-prompt">จัดการภาพยนตร์</h1>
+              <p className="text-xs text-gray-400">บริหารจัดการแคตตาล็อกภาพยนตร์ กำหนดวันฉาย และราคาตั๋วเริ่มต้น</p>
+            </div>
+          </div>
+          <PermissionGuard requiredPermission="movies:create">
+            <Button
+              onClick={openAdd}
+              className="bg-brand-red hover:bg-brand-red/90 text-white font-bold font-prompt shadow-[0_0_14px_rgba(227,24,55,0.3)] transition-all"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              เพิ่มภาพยนตร์ใหม่
+            </Button>
+          </PermissionGuard>
         </div>
-        <Button
-          onClick={openAdd}
-          className="bg-brand-red hover:bg-brand-red-dark text-white shadow-lg shadow-brand-red/20"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          เพิ่มภาพยนตร์
-        </Button>
-      </div>
 
-      <div className="rounded-2xl border border-surface-border bg-surface-DEFAULT overflow-hidden">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin text-brand-red" />
-          </div>
-        ) : !movies.length ? (
-          <div className="flex flex-col items-center py-16 text-muted-foreground gap-3">
-            <Film className="w-12 h-12" />
-            <p>ยังไม่มีภาพยนตร์</p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="border-surface-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground">ชื่อ</TableHead>
-                <TableHead className="text-muted-foreground">วันเริ่ม</TableHead>
-                <TableHead className="text-muted-foreground">วันสิ้นสุด</TableHead>
-                <TableHead className="text-muted-foreground">ราคา</TableHead>
-                <TableHead className="text-muted-foreground">สถานะ</TableHead>
-                <TableHead className="text-right text-muted-foreground">การจัดการ</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedMovies.map((movie) => (
-                <TableRow key={movie.id} className="border-surface-border hover:bg-surface-elevated">
-                  <TableCell className="text-white font-medium">{movie.title}</TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(movie.startDate)}</TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(movie.endDate)}</TableCell>
-                  <TableCell className="text-brand-red font-semibold">฿{movie.basePrice.toFixed(0)}</TableCell>
-                  <TableCell>
-                    {/* Status Toggle Switch triggering Centered Confirm Modal */}
-                    <label className="relative inline-flex items-center cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={movie.isActive}
-                        onChange={() => handleToggleActiveClick(movie)}
-                        disabled={updateMutation.isPending}
-                      />
-                      <div className="w-11 h-6 bg-surface-base peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-surface-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-red group-hover:after:scale-95 disabled:opacity-50 border border-surface-border"></div>
-                      <span className={`ml-3 text-sm font-medium transition-colors ${movie.isActive ? 'text-brand-red' : 'text-muted-foreground'}`}>
-                        {movie.isActive ? 'เปิดฉาย' : 'ปิดฉาย'}
-                      </span>
-                    </label>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => openEdit(movie)}
-                        className="text-muted-foreground hover:text-white hover:bg-surface-elevated"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+        <div className="rounded-2xl border border-[#2A2A3E] bg-[#1C1C27] overflow-hidden shadow-xl min-h-[480px] flex flex-col justify-between">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="w-8 h-8 animate-spin text-brand-red" />
+            </div>
+          ) : !movies.length ? (
+            <div className="flex flex-col items-center py-24 text-gray-400 gap-3">
+              <Film className="w-12 h-12 text-gray-600" />
+              <p className="font-prompt">ยังไม่มีรายการภาพยนตร์ในระบบ</p>
+            </div>
+          ) : (
+            <div className="flex-1">
+              <Table>
+                <TableHeader className="bg-[#0A0A0F]/60 border-b border-[#2A2A3E]">
+                  <TableRow className="border-[#2A2A3E] hover:bg-transparent">
+                    <TableHead className="text-gray-400 font-prompt">ชื่อภาพยนตร์</TableHead>
+                    <TableHead className="text-gray-400 font-prompt">วันเริ่มฉาย</TableHead>
+                    <TableHead className="text-gray-400 font-prompt">วันสิ้นสุด</TableHead>
+                    <TableHead className="text-gray-400 font-prompt">ราคาเริ่มต้น</TableHead>
+                    <TableHead className="text-gray-400 font-prompt">สถานะฉาย</TableHead>
+                    <PermissionGuard requiredPermissions={['movies:update', 'movies:delete']} requireAll={false}>
+                      <TableHead className="text-right text-gray-400 font-prompt">การจัดการ</TableHead>
+                    </PermissionGuard>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedMovies.map((movie) => (
+                    <TableRow key={movie.id} className="border-[#2A2A3E] hover:bg-gray-800/40 transition-colors">
+                      <TableCell className="text-white font-bold font-prompt">{movie.title}</TableCell>
+                      <TableCell className="text-gray-400 text-xs font-mono">{formatDate(movie.startDate)}</TableCell>
+                      <TableCell className="text-gray-400 text-xs font-mono">{formatDate(movie.endDate)}</TableCell>
+                      <TableCell className="text-brand-red font-bold font-mono">฿{movie.basePrice.toFixed(0)}</TableCell>
+                      <TableCell>
+                        {/* Premium Cinema Status Toggle Card Button with PermissionGuard */}
+                        <PermissionGuard requiredPermission="movies:update" mode="disable">
+                          <button
+                            type="button"
+                            aria-pressed={movie.isActive}
+                            onClick={() => handleToggleActiveClick(movie)}
+                            disabled={updateMutation.isPending}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold font-prompt transition-all ${
+                              movie.isActive
+                                ? 'bg-brand-red/15 border-brand-red text-brand-red shadow-[0_0_10px_rgba(227,24,55,0.2)]'
+                                : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:border-gray-600'
+                            }`}
+                          >
+                            {movie.isActive ? (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-brand-red" />
+                                <span>เปิดฉายปกติ</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle className="w-3.5 h-3.5 text-gray-500" />
+                                <span>ปิดฉายชั่วคราว</span>
+                              </>
+                            )}
+                          </button>
+                        </PermissionGuard>
+                      </TableCell>
+                      <PermissionGuard requiredPermissions={['movies:update', 'movies:delete']} requireAll={false}>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <PermissionGuard requiredPermission="movies:update">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openEdit(movie)}
+                                className="text-gray-400 hover:text-white hover:bg-gray-800 text-xs"
+                                title="แก้ไขข้อมูลภาพยนตร์"
+                              >
+                                <Pencil className="w-3.5 h-3.5 mr-1" />
+                                <span>แก้ไข</span>
+                              </Button>
+                            </PermissionGuard>
+                            <PermissionGuard requiredPermission="movies:delete">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteClick(movie)}
+                                className="text-red-400 hover:text-red-300 hover:bg-red-950/40 text-xs"
+                                title="ลบภาพยนตร์"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                <span>ลบ</span>
+                              </Button>
+                            </PermissionGuard>
+                          </div>
+                        </TableCell>
+                      </PermissionGuard>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
-        {/* Shadcn UI Pagination */}
-        {totalPages > 1 && (
-          <div className="p-4 border-t border-surface-border bg-surface-DEFAULT flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-muted-foreground">
-              แสดงภาพยนตร์ {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, movies.length)} จากทั้งหมด {movies.length} เรื่อง
-            </span>
-            <Pagination className="w-auto mx-0">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                  />
-                </PaginationItem>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <PaginationItem key={page}>
-                    <PaginationLink
-                      isActive={currentPage === page}
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </PaginationLink>
+          {/* Shadcn UI Pagination with smooth event handlers */}
+          {totalPages > 1 && (
+            <div className="p-4 border-t border-[#2A2A3E] bg-[#0A0A0F]/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <span className="text-xs text-gray-400">
+                แสดงภาพยนตร์ {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, movies.length)} จากทั้งหมด {movies.length} เรื่อง
+              </span>
+              <Pagination className="w-auto mx-0">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage((p) => Math.max(1, p - 1));
+                      }}
+                      disabled={currentPage === 1}
+                      className="border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer"
+                    />
                   </PaginationItem>
-                ))}
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        )}
-      </div>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        type="button"
+                        isActive={currentPage === page}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(page);
+                        }}
+                        className={currentPage === page ? 'bg-brand-red text-white border-brand-red shadow-[0_0_10px_rgba(227,24,55,0.3)] cursor-default' : 'border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer'}
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage((p) => Math.min(totalPages, p + 1));
+                      }}
+                      disabled={currentPage === totalPages}
+                      className="border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer"
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </div>
 
-      {/* Add / Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-surface-elevated border-surface-border text-white">
-          <DialogHeader>
-            <DialogTitle className="text-white">{editing ? 'แก้ไขภาพยนตร์' : 'เพิ่มภาพยนตร์'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">ชื่อภาพยนตร์</Label>
-              <Input
-                placeholder="ชื่อภาพยนตร์"
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                className="bg-surface-base border-surface-border text-white placeholder:text-muted-foreground focus-visible:ring-brand-red"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-muted-foreground">วันเริ่มฉาย</Label>
-                  {form.startDate && (
-                    <span className="text-xs font-bold text-brand-red font-mono bg-brand-red/10 px-2 py-0.5 rounded border border-brand-red/20">
-                      {formatDate(form.startDate)}
-                    </span>
-                  )}
-                </div>
+        {/* Add / Edit Dialog */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="bg-[#1C1C27] border-[#2A2A3E] text-white sm:max-w-lg rounded-2xl shadow-2xl">
+            <DialogHeader className="border-b border-[#2A2A3E] pb-3">
+              <DialogTitle className="text-white font-prompt flex items-center gap-2 text-lg">
+                <Film className="w-5 h-5 text-brand-red" />
+                <span>{editing ? 'แก้ไขข้อมูลภาพยนตร์' : 'เพิ่มภาพยนตร์ใหม่'}</span>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-gray-300 font-prompt">ชื่อภาพยนตร์ (Title):</Label>
                 <Input
-                  type="date"
-                  max={form.endDate || undefined}
-                  value={form.startDate}
-                  onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-                  className="bg-surface-base border-surface-border text-white focus-visible:ring-brand-red"
+                  placeholder="เช่น Avatar: The Way of Water"
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  className="bg-[#0A0A0F] border-[#2A2A3E] text-white placeholder:text-gray-600 focus-visible:ring-brand-red text-xs"
                 />
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-muted-foreground">วันสิ้นสุด</Label>
-                  {form.endDate && (
-                    <span className="text-xs font-bold text-brand-red font-mono bg-brand-red/10 px-2 py-0.5 rounded border border-brand-red/20">
-                      {formatDate(form.endDate)}
-                    </span>
-                  )}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-gray-300 font-prompt flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-brand-red" />
+                      วันเริ่มฉาย:
+                    </Label>
+                    {form.startDate && (
+                      <span className="text-[10px] font-bold text-brand-red font-mono bg-brand-red/10 px-1.5 py-0.5 rounded border border-brand-red/20">
+                        {formatDate(form.startDate)}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type="date"
+                    max={form.endDate || undefined}
+                    value={form.startDate}
+                    onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                    className="bg-[#0A0A0F] border-[#2A2A3E] text-white focus-visible:ring-brand-red text-xs"
+                  />
                 </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-gray-300 font-prompt flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-brand-red" />
+                      วันสิ้นสุด:
+                    </Label>
+                    {form.endDate && (
+                      <span className="text-[10px] font-bold text-brand-red font-mono bg-brand-red/10 px-1.5 py-0.5 rounded border border-brand-red/20">
+                        {formatDate(form.endDate)}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type="date"
+                    min={form.startDate || undefined}
+                    value={form.endDate}
+                    onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                    className="bg-[#0A0A0F] border-[#2A2A3E] text-white focus-visible:ring-brand-red text-xs"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-gray-300 font-prompt flex items-center gap-1">
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                  ราคาตั๋วเริ่มต้น (บาท):
+                </Label>
                 <Input
-                  type="date"
-                  min={form.startDate || undefined}
-                  value={form.endDate}
-                  onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-                  className="bg-surface-base border-surface-border text-white focus-visible:ring-brand-red"
+                  type="number"
+                  min={0}
+                  placeholder="100"
+                  value={form.basePrice === 0 ? '' : form.basePrice}
+                  onChange={(e) => setForm((f) => ({ ...f, basePrice: e.target.value === '' ? 0 : Number(e.target.value) }))}
+                  className="bg-[#0A0A0F] border-[#2A2A3E] text-white focus-visible:ring-brand-red text-xs font-mono"
                 />
               </div>
+
+              {/* Status Selection: Premium Segmented Toggle Pills (No Checkbox) */}
+              <div className="space-y-2 pt-1">
+                <Label className="text-xs text-gray-300 font-prompt">สถานะเปิดให้บริการฉาย:</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    aria-selected={form.isActive === true}
+                    onClick={() => setForm((f) => ({ ...f, isActive: true }))}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all text-xs font-bold font-prompt ${
+                      form.isActive === true
+                        ? 'bg-brand-red/20 border-brand-red text-brand-red shadow-[0_0_12px_rgba(227,24,55,0.25)]'
+                        : 'bg-[#0A0A0F] border-[#2A2A3E] text-gray-500 hover:border-gray-700'
+                    }`}
+                  >
+                    <CheckCircle2 className={`w-4 h-4 ${form.isActive === true ? 'text-brand-red' : 'text-gray-600'}`} />
+                    <span>เปิดฉายภาพยนตร์</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-selected={form.isActive === false}
+                    onClick={() => setForm((f) => ({ ...f, isActive: false }))}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all text-xs font-bold font-prompt ${
+                      form.isActive === false
+                        ? 'bg-red-500/20 border-red-500 text-red-400 shadow-[0_0_12px_rgba(239,68,68,0.25)]'
+                        : 'bg-[#0A0A0F] border-[#2A2A3E] text-gray-500 hover:border-gray-700'
+                    }`}
+                  >
+                    <AlertTriangle className={`w-4 h-4 ${form.isActive === false ? 'text-red-400' : 'text-gray-600'}`} />
+                    <span>ปิดฉายชั่วคราว</span>
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">ราคาเริ่มต้น (บาท)</Label>
-              <Input
-                type="number"
-                min={0}
-                placeholder="กรอกราคาเริ่มต้น"
-                value={form.basePrice === 0 ? '' : form.basePrice}
-                onChange={(e) => setForm((f) => ({ ...f, basePrice: e.target.value === '' ? 0 : Number(e.target.value) }))}
-                className="bg-surface-base border-surface-border text-white focus-visible:ring-brand-red"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <label className="relative inline-flex items-center cursor-pointer group">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={form.isActive}
-                  onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-                />
-                <div className="w-11 h-6 bg-surface-base peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-surface-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-red group-hover:after:scale-95 border border-surface-border"></div>
-                <span className="ml-3 text-sm font-medium text-muted-foreground">
-                  เปิดให้บริการ
-                </span>
-              </label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogOpen(false)}
-              disabled={isPending}
-              className="border-surface-border text-muted-foreground hover:text-white"
-            >
-              ยกเลิก
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={isPending}
-              className="bg-brand-red hover:bg-brand-red-dark text-white shadow-lg shadow-brand-red/20"
-            >
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              {editing ? 'บันทึก' : 'เพิ่ม'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            <DialogFooter className="pt-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDialogOpen(false)}
+                disabled={isPending}
+                className="border-[#2A2A3E] bg-[#0A0A0F] text-gray-300 hover:bg-gray-800 text-xs"
+              >
+                ยกเลิก
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isPending}
+                className="bg-brand-red hover:bg-brand-red/90 text-white font-bold text-xs px-5 shadow-[0_0_12px_rgba(227,24,55,0.3)]"
+              >
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                {editing ? 'บันทึกการแก้ไข' : 'บันทึกภาพยนตร์ใหม่'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </PermissionGuard>
   );
 }
+

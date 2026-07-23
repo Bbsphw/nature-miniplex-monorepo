@@ -63,10 +63,10 @@ public class CinemaTicketingTests : IClassFixture<CustomWebApplicationFactory>, 
     public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
-    public async Task CreateMovie_AsOwner_ShouldSaveToDatabase_AndLogAction()
+    public async Task CreateMovie_AsAdmin_ShouldSaveToDatabase_AndLogAction()
     {
         // Arrange
-        _client.DefaultRequestHeaders.Add("X-Test-Role", "Owner");
+        _client.DefaultRequestHeaders.Add("X-Test-Role", "SYSTEM_ADMIN");
         var command = new { Title = "Inception", BasePrice = 148, IsActive = true, StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(7) };
 
         // Act
@@ -96,7 +96,7 @@ public class CinemaTicketingTests : IClassFixture<CustomWebApplicationFactory>, 
     public async Task DeleteMovie_ShouldPerformSoftDelete_AndKeepRecordInDatabase()
     {
         // Arrange
-        _client.DefaultRequestHeaders.Add("X-Test-Role", "Owner");
+        _client.DefaultRequestHeaders.Add("X-Test-Role", "SYSTEM_ADMIN");
         
         using var scope = _factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -215,8 +215,6 @@ public class CinemaTicketingTests : IClassFixture<CustomWebApplicationFactory>, 
         var successResponse = responses.SingleOrDefault(r => r.IsSuccessStatusCode);
         var conflictResponse = responses.SingleOrDefault(r => r.StatusCode == HttpStatusCode.Conflict);
 
-        // Note: With InMemory DB, true Race Conditions / Unique Index constraints might not trigger natively
-        // as they would in SQL Server. It relies on application-level locks or logic to return Conflict.
         if (conflictResponse != null)
         {
             var problemDetails = await conflictResponse.Content.ReadFromJsonAsync<ProblemDetails>();

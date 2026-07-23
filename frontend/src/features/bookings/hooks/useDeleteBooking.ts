@@ -8,7 +8,7 @@ export function useDeleteBooking() {
 
   return useMutation({
     mutationFn: async ({ id, phoneNumber }: { id: string; phoneNumber: string }) => {
-      await apiClient.delete(`/api/bookings/${id}`, { data: { phoneNumber } });
+      await apiClient.delete(`/api/bookings/${id}`, { params: { phoneNumber } });
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['bookings'] });
@@ -16,7 +16,12 @@ export function useDeleteBooking() {
     },
     onError: (error) => {
       if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.message ?? 'เกิดข้อผิดพลาดในการยกเลิกการจอง');
+        const message =
+          error.response?.data?.detail ||
+          error.response?.data?.message ||
+          error.response?.data?.title ||
+          'เกิดข้อผิดพลาดในการยกเลิกการจอง';
+        toast.error(message);
       } else {
         toast.error('เกิดข้อผิดพลาดในการยกเลิกการจอง');
       }

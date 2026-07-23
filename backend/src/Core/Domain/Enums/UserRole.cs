@@ -2,6 +2,7 @@ namespace NatureMiniPlex.Core.Domain.Enums;
 
 public enum UserRole
 {
-    Owner,
-    Staff
+    SYSTEM_ADMIN,
+    CINEMA_MANAGER,
+    COUNTER_STAFF
 }

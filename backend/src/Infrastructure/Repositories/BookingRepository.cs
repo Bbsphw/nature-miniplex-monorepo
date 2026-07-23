@@ -72,4 +72,16 @@ public class BookingRepository : Repository<Booking>, IBookingRepository
             })
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Booking>> GetBookingsForReportAsync(System.DateTime startDate, System.DateTime endDate, CancellationToken cancellationToken = default)
+    {
+        var start = startDate.Date;
+        var end = endDate.Date.AddDays(1).AddTicks(-1);
+
+        return await _dbSet
+            .AsNoTracking()
+            .Include(b => b.BookingItems)
+            .Where(b => b.BookingTime >= start && b.BookingTime <= end)
+            .ToListAsync(cancellationToken);
+    }
 }

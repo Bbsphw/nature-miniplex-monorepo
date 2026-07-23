@@ -1,10 +1,13 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NatureMiniPlex.Core.Application.Interfaces;
 using NatureMiniPlex.Core.Application.Interfaces.Repositories;
+using NatureMiniPlex.Infrastructure.Authentication;
 using NatureMiniPlex.Infrastructure.Persistence;
 using NatureMiniPlex.Infrastructure.Repositories;
+using NatureMiniPlex.Infrastructure.Services;
 
 namespace NatureMiniPlex.Infrastructure;
 
@@ -12,6 +15,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddHttpContextAccessor();
+
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
@@ -22,15 +27,20 @@ public static class DependencyInjection
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-        services.AddOptions<Authentication.JwtSettings>()
-            .Bind(configuration.GetSection(Authentication.JwtSettings.SectionName))
+        services.AddScoped<IPermissionService, PermissionService>();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+        services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+
+        services.AddOptions<JwtSettings>()
+            .Bind(configuration.GetSection(JwtSettings.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
-        services.AddSingleton<NatureMiniPlex.Core.Application.Interfaces.IJwtTokenGenerator, Authentication.JwtTokenGenerator>();
-        services.AddSingleton<NatureMiniPlex.Core.Application.Interfaces.IPasswordHasher, Authentication.PasswordHasher>();
+        services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddSingleton<IPasswordHasher, PasswordHasher>();
         
-        services.Configure<NatureMiniPlex.Infrastructure.Services.SmtpSettings>(configuration.GetSection("SmtpSettings"));
-        services.AddTransient<IEmailService, NatureMiniPlex.Infrastructure.Services.EmailService>();
+        services.Configure<SmtpSettings>(configuration.GetSection("SmtpSettings"));
+        services.AddTransient<IEmailService, EmailService>();
 
         return services;
     }

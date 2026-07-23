@@ -141,7 +141,36 @@ docker compose up --build -d
 | **Swagger UI** | OpenAPI Interactive Spec | [http://localhost:5000/swagger](http://localhost:5000/swagger) | - |
 | **Mailpit Web UI** | ตรวจสอบอีเมลทดสอบ (E-Ticket) | [http://localhost:8025](http://localhost:8025) | - |
 | **Mailpit SMTP** | พอร์ตรับส่งอีเมล SMTP | `localhost:1025` | Port `1025` |
-| **SQL Server** | MS SQL Server 2022 DB Port | `localhost:1433` | User: `sa` / Password: `${SA_PASSWORD}` |
+| **SQL Server** | MS SQL Server 2022 DB Port | `localhost:1433` หรือ `127.0.0.1:1433` | User: `sa` / Password: `${SA_PASSWORD}` |
+
+---
+
+## 🔌 การเชื่อมต่อฐานข้อมูลผ่าน SSMS (SQL Server Management Studio)
+
+สำหรับนักพัฒนาที่ใช้ **Windows** ในการเปิด SSMS เชื่อมต่อกับ SQL Server บน **Docker (WSL2)**:
+
+### 1. การกำหนด Server Name ตามสภาพแวดล้อม WSL2
+
+- **กรณีใช้ WSL2 โหมดปกติ หรือ `networkingMode=mirrored`:**
+  - **Server Name:** **`127.0.0.1,1433`** หรือ **`localhost,1433`**
+  - *(ข้อควรระวัง: หากตั้งค่า `networkingMode=mirrored` ใน `.wslconfig` **ห้าม** ใช้ IP การ์ดจอ/Wi-Fi เช่น `172.xx.xx.xx` เพราะทราฟฟิกจะโดน Loopback Filter บล็อกและเกิด `Error 258: Timeout` ให้ใช้ `127.0.0.1,1433` เท่านั้น)*
+
+### 2. การตั้งค่าในหน้าต่าง Connect to Server (SSMS)
+
+```text
+Server type:        Database Engine
+Server name:        127.0.0.1,1433
+Authentication:     SQL Server Authentication
+Login:              sa
+Password:           NaturePlex@2026!  (หรือตามค่า SA_PASSWORD ใน .env)
+```
+
+> [!IMPORTANT]
+> **การตั้งค่า SSL Certificate (จำเป็นสำหรับ SSMS v19/v20):**
+> 1. ในหน้าต่าง Connect to Server กดปุ่ม **`Options >>`**
+> 2. ไปที่แถบ **Connection Properties**
+> 3. 🔘 **ติ๊กถูกที่ช่อง [x] `Trust server certificate`**
+> 4. เลือก **Encryption:** เป็น `Optional` หรือ `Mandatory` แล้วกด **Connect**
 
 ---
 

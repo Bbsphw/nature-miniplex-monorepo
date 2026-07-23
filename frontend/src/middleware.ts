@@ -25,6 +25,7 @@ export function middleware(request: NextRequest) {
 
 // See "Matching Paths" below to learn more
 export const config = {
-  // Apply middleware to all routes starting with /admin
-  matcher: ['/admin/:path*'],
+  // Apply middleware to protected routes starting with /admin or /settings
+  matcher: ['/admin/:path*', '/settings/:path*'],
 };
+

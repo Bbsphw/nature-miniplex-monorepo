@@ -115,10 +115,10 @@ Content-Type: application/json
 {
   "username": "admin01",
   "passwordHash": "hashed_password_here",
-  "role": "Owner"
+  "role": "SYSTEM_ADMIN"
 }
 
 ###
-# 5.2 ดูยอดขายรายวัน (GET) - สำหรับ Owner
+# 5.2 ดูยอดขายรายวัน (GET) - สำหรับ SYSTEM_ADMIN
 GET {{NatureMiniPlex.API_HostAddress}}/api/reports/daily-revenue?startDate=2026-07-01T00:00:00Z&endDate=2026-07-31T23:59:59Z
 Accept: application/json

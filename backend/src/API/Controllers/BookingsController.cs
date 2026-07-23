@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using NatureMiniPlex.Core.Application.Features.Bookings.Commands.CreateBooking;
 using NatureMiniPlex.Core.Application.Features.Bookings.Commands.CancelBooking;
+using NatureMiniPlex.Infrastructure.Authentication;
 
 namespace NatureMiniPlex.API.Controllers;
 
@@ -19,7 +20,7 @@ public class BookingsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetBookings([FromQuery] string? phoneNumber, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
     {
-        // Allow public ticket lookup by phone number without login; require Admin/Owner auth for listing all bookings
+        // Allow public ticket lookup by phone number without login; require authenticated user with permissions for listing all
         if (string.IsNullOrWhiteSpace(phoneNumber) && !(User.Identity?.IsAuthenticated ?? false))
         {
             return Unauthorized();

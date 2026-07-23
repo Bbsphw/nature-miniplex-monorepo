@@ -2,10 +2,12 @@ using FluentAssertions;
 using Moq;
 using NatureMiniPlex.Application.UnitTests.Common;
 using NatureMiniPlex.Core.Application.Features.Bookings.Commands.CancelBooking;
+using NatureMiniPlex.Core.Application.Interfaces;
 using NatureMiniPlex.Core.Domain.Entities;
 using NatureMiniPlex.Core.Domain.Enums;
 using System;
 using System.Collections.Generic;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -15,10 +17,19 @@ namespace NatureMiniPlex.Application.UnitTests.Bookings.Commands.CancelBooking;
 public class CancelBookingCommandHandlerTests : BaseTest
 {
     private readonly CancelBookingCommandHandler _handler;
+    private readonly Mock<ICurrentUserService> _mockCurrentUserService;
 
     public CancelBookingCommandHandlerTests()
     {
-        _handler = new CancelBookingCommandHandler(MockBookingRepository.Object, MockShowtimeRepository.Object, MockUnitOfWork.Object);
+        _mockCurrentUserService = new Mock<ICurrentUserService>();
+        _mockCurrentUserService.Setup(x => x.HasPermissionAsync(It.IsAny<string>()))
+            .ReturnsAsync(false); // Default: standard customer behavior
+
+        _handler = new CancelBookingCommandHandler(
+            MockBookingRepository.Object,
+            MockShowtimeRepository.Object,
+            MockUnitOfWork.Object,
+            _mockCurrentUserService.Object);
     }
 
     [Fact]
@@ -53,7 +64,7 @@ public class CancelBookingCommandHandlerTests : BaseTest
     }
 
     [Fact]
-    public async Task Handle_ShouldThrowException_WhenPhoneNumberDoesNotMatch()
+    public async Task Handle_ShouldThrowSecurityException_WhenPhoneNumberDoesNotMatch()
     {
         // Arrange
         var bookingId = Guid.NewGuid();
@@ -72,7 +83,6 @@ public class CancelBookingCommandHandlerTests : BaseTest
         Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<Exception>().WithMessage("*เบอร์โทรศัพท์ไม่ตรงกับผู้จอง*");
+        await act.Should().ThrowAsync<SecurityException>();
     }
 }
-

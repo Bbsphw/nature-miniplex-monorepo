@@ -76,17 +76,71 @@ export interface Seat {
   columnName: string;
 }
 
+export type BookingStatus = 'Completed' | 'Canceled';
+export type ItemStatus = 'Active' | 'Canceled';
+export type UserRole = 'SYSTEM_ADMIN' | 'CINEMA_MANAGER' | 'COUNTER_STAFF';
+
+export interface Permission {
+  id?: number;
+  code: string;
+  resource: string;
+  action: string;
+  description?: string;
+}
+
+export interface Role {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  isSystemRole?: boolean;
+  rolePermissions?: { permissionId: number; permission?: Permission }[];
+  permissions?: Permission[];
+  permissionIds?: number[];
+}
+
 export interface User {
   id: number;
   username: string;
+  email?: string;
   role: UserRole;
+  roles?: string[];
+  roleIds?: number[];
+  cinemaId?: number;
   isActive: boolean;
+  permissions?: string[];
+  createdAt?: string;
 }
 
-export type BookingStatus = 'Completed' | 'Canceled';
-export type ItemStatus = 'Active' | 'Canceled';
-export type UserRole = 'Owner' | 'Staff';
-export interface AuthResponse { accessToken: string; username: string; role: UserRole; expiresAt?: string; }
+export interface AuthResponse { 
+  accessToken: string; 
+  username: string; 
+  role: UserRole; 
+  permissions?: string[];
+  expiresAt?: string; 
+}
+
+export interface UserProfile {
+  id: number | string;
+  username: string;
+  email?: string;
+  phoneNumber?: string;
+  role: UserRole;
+  permissions: string[];
+  createdAt?: string;
+}
+
+export interface UpdateProfileCommand {
+  username?: string;
+  email?: string;
+  phoneNumber?: string;
+}
+
+export interface ChangePasswordCommand {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface CreateMovieCommand { title: string; startDate: string; endDate: string; basePrice: number; isActive: boolean; }
 export interface UpdateMovieCommand extends CreateMovieCommand { id: number; }
 export interface CreateShowtimeCommand { movieId: number; cinemaId: number; showDateTime: string; ticketPrice: number; isActive: boolean; }
@@ -112,5 +166,7 @@ export interface LoginCommand {
 export interface CreateUserCommand {
   username: string;
   passwordHash: string;
-  role: UserRole;
+  role?: UserRole;
+  roleIds?: number[];
+  cinemaId?: number;
 }

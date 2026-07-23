@@ -1,6 +1,6 @@
 # 🗄️ Nature MiniPlex - Database Architecture & Guidelines Specification
 
-[⬅️ กลับสู่ Backend README](./README.md) | [🏛️ Architecture Specs](./ARCHITECTURE.md) | [📚 API Documentation](./API_DOCS.md)
+[⬅️ กลับสู่ Backend README](./README.md) | [🏛️ Architecture Specs](./ARCHITECTURE.md) | [📚 API Documentation](./API_DOCS.md) | [🛡️ Security Specs](./SECURITY.md)
 
 เอกสารฉบับนี้อธิบายถึงมาตรฐานสถาปัตยกรรมฐานข้อมูล (Database Architecture), การออกแบบ Schema, Entity Framework Core 8 Code-First Guidelines, กลยุทธ์การรับมือ Concurrency, และ DBML Diagram ของระบบ **Nature MiniPlex**
 
@@ -11,9 +11,11 @@
 ระบบใช้ **SQL Server 2022** เป็น RDBMS หลัก และใช้ **Entity Framework Core 8** เป็น ORM หลักในการจัดการ Data Access
 
 ### หลักการออกแบบ Schema (Schema Design Principles)
-1. **Third Normal Form (3NF):** ออกแบบโครงสร้างตารางอยู่ในระดับ 3NF เป็นมาตรฐาน ยกเว้นส่วนที่ทำ Denormalization เพื่อประธานประสิทธิภาพการดึงรายงาน (Reporting Performance)
-2. **Fluent API Configuration:** การตั้งค่า Schema (Primary Keys, Foreign Keys, String Lengths, Default Values) ต้องแยกออกไปเขียนในคลาสที่สืบทอดจาก `IEntityTypeConfiguration<T>` บนเลเยอร์ `Infrastructure/Persistence/Configurations/`
-3. **Strict Domain Purity:** ห้ามใส่ Data Annotations (เช่น `[Required]`, `[MaxLength]`) บน Domain Entities เพื่อรักษา Domain Purity
+1. **Third Normal Form (3NF):** ออกแบบโครงสร้างตารางอยู่ในระดับ 3NF เป็นมาตรฐาน ยกเว้นส่วนที่ทำ Denormalization เพื่อประสิทธิภาพการดึงรายงาน
+2. **Dynamic RBAC 5 Tables:** แยกตารางบริหารจัดการสิทธิ์พนักงานออกเป็น 5 ตารางหลัก (`Users`, `Roles`, `Permissions`, `UserRoles`, `RolePermissions`) เพื่อลด Data Redundancy และรองรับการปรับแต่งสิทธิ์แบบ Dynamic ผ่าน Admin Panel
+3. **Actor Model Isolation:** แยกตาราง `Customers` (ผู้ซื้อตั๋วภาพยนตร์ภายนอก) ออกจากตาราง `Users` (พนักงานระบบหลังบ้าน) อย่างเด็ดขาดตามข้อกำหนด SRS
+4. **Fluent API Configuration:** การตั้งค่า Schema แยกออกไปเขียนในคลาสที่สืบทอดจาก `IEntityTypeConfiguration<T>` บนเลเยอร์ `Infrastructure/Persistence/EntityConfigurations/`
+5. **Strict Domain Purity:** ห้ามใส่ Data Annotations (เช่น `[Required]`, `[MaxLength]`) บน Domain Entities เพื่อรักษา Domain Purity
 
 ---
 
@@ -25,7 +27,7 @@
 กำหนด Index พิเศษในระดับ SQL Server ในตาราง `BookingItems`:
 
 ```csharp
-// Infrastructure/Persistence/Configurations/BookingItemConfiguration.cs
+// Infrastructure/Persistence/EntityConfigurations/BookingItemConfiguration.cs
 public class BookingItemConfiguration : IEntityTypeConfiguration<BookingItem>
 {
     public void Configure(EntityTypeBuilder<BookingItem> builder)
@@ -71,21 +73,51 @@ Project NatureMiniPlex_Database {
   Note: '''
     สถาปัตยกรรมฐานข้อมูล Nature MiniPlex
     - Entity Framework Core 8 Code-First Architecture
+    - Dynamic Role-Based Access Control (RBAC 5 Tables)
+    - Actor Isolation: แยก Customers (ภายนอก) และ Users (พนักงานหลังบ้าน)
     - Filtered Unique Index ป้องกัน Double-Booking 100%
-    - รองรับ Role-Based Access Control (Owner / Staff)
   '''
 }
 
 // ----------------------------------------------------
-// 1. SYSTEM & AUDIT (ระบบจัดการสิทธิ์และประวัติการทำงาน)
+// 1. SYSTEM & RBAC (ระบบจัดการสิทธิ์พนักงานและประวัติการทำงาน)
 // ----------------------------------------------------
 
 Table Users {
   Id int [pk, increment, note: 'PK: รหัสพนักงาน']
   Username varchar(50) [unique, not null, note: 'ชื่อผู้ใช้งาน']
+  Email varchar(100) [null, note: 'อีเมลพนักงาน']
   PasswordHash varchar(255) [not null, note: 'รหัสผ่าน BCrypt Hashed']
-  Role varchar(20) [not null, note: "'Owner' หรือ 'Staff'"]
+  CinemaId int [ref: > Cinemas.Id, null, note: 'FK: สาขาที่รับผิดชอบ (สำหรับ Manager)']
   IsActive boolean [default: true, note: 'สถานะการใช้งาน']
+}
+
+Table Roles {
+  Id int [pk, increment, note: 'PK: รหัสบทบาท']
+  Code varchar(50) [unique, not null, note: 'รหัสอ้างอิง เช่น SYSTEM_ADMIN, CINEMA_MANAGER']
+  Name nvarchar(100) [not null, note: 'ชื่อบทบาท']
+  Description nvarchar(255) [null]
+  IsSystemRole boolean [default: false]
+}
+
+Table Permissions {
+  Id int [pk, increment, note: 'PK: รหัสสิทธิ์']
+  Code varchar(100) [unique, not null, note: 'รหัสสิทธิ์ เช่น showtime:create, bookings:cancel:assigned_cinema']
+  Resource varchar(50) [not null, note: 'ทรัพยากรเป้าหมาย']
+  Action varchar(50) [not null, note: 'การกระทำ']
+  Description nvarchar(255) [null]
+}
+
+Table UserRoles {
+  UserId int [ref: > Users.Id, note: 'FK: พนักงาน']
+  RoleId int [ref: > Roles.Id, note: 'FK: บทบาท']
+  AssignedAt datetime [default: `GETUTCDATE()`]
+}
+
+Table RolePermissions {
+  RoleId int [ref: > Roles.Id, note: 'FK: บทบาท']
+  PermissionId int [ref: > Permissions.Id, note: 'FK: สิทธิ์']
+  GrantedAt datetime [default: `GETUTCDATE()`]
 }
 
 Table ActionLogs {
@@ -126,7 +158,7 @@ Table Movies {
 }
 
 // ----------------------------------------------------
-// 3. TRANSACTION DATA (รอบฉายและการจอง)
+// 3. TRANSACTION DATA (รอบฉายและการจองตั๋วภาพยนตร์)
 // ----------------------------------------------------
 
 Table Showtimes {
@@ -140,15 +172,15 @@ Table Showtimes {
 }
 
 Table Customers {
-  Id uuid [pk, note: 'PK: รหัสลูกค้า (Sequential GUID)']
-  PhoneNumber varchar(15) [unique, not null, note: 'เบอร์โทรศัพท์ (Search Key)']
+  Id uuid [pk, note: 'PK: รหัสลูกค้าผู้ซื้อตั๋ว (Sequential GUID)']
+  PhoneNumber varchar(15) [unique, not null, note: 'เบอร์โทรศัพท์ (Public Lookup Key)']
   Email varchar(255) [null, note: 'อีเมลลูกค้า']
   CreatedAt datetime [default: `GETUTCDATE()`]
 }
 
 Table Bookings {
   Id uuid [pk, note: 'PK: รหัสใบจอง (Header)']
-  CustomerId uuid [ref: > Customers.Id, note: 'FK: ลูกค้า']
+  CustomerId uuid [ref: > Customers.Id, note: 'FK: ลูกค้าผู้ซื้อตั๋ว']
   BookingTime datetime [default: `GETUTCDATE()`, note: 'เวลาทำรายการ']
   Status int [not null, note: 'BookingStatus Enum (1=Completed, 2=Canceled)']
 }

@@ -85,7 +85,9 @@ export default function BookingConfirmationPage({
         } catch (error) {
           if (axios.isAxiosError(error)) {
             toast.error(
-              error.response?.data?.message ??
+              error.response?.data?.detail ??
+                error.response?.data?.message ??
+                error.response?.data?.title ??
                 "ไม่สามารถยกเลิกได้ กรุณาตรวจสอบเบอร์โทรศัพท์",
             );
           } else {
@@ -136,7 +138,9 @@ export default function BookingConfirmationPage({
     } catch (error) {
       if (axios.isAxiosError(error)) {
         toast.error(
-          error.response?.data?.message ??
+          error.response?.data?.detail ??
+            error.response?.data?.message ??
+            error.response?.data?.title ??
             "เบอร์โทรศัพท์ไม่ถูกต้อง ไม่สามารถยกเลิกที่นั่งนี้ได้"
         );
       } else {
@@ -389,7 +393,10 @@ export default function BookingConfirmationPage({
           <div className="mt-10 text-center">
             <Button
               variant="outline"
-              onClick={() => setCancelOpen(true)}
+              onClick={() => {
+                setCancelPhone("");
+                setCancelOpen(true);
+              }}
               className="border-white/10 text-gray-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-all rounded-xl px-6 h-12"
             >
               <Trash2 className="w-4 h-4 mr-2" />

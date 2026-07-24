@@ -28,6 +28,13 @@ public class Showtime : BaseEntity
         AddDomainEvent(new ShowtimeLockedEvent(this));
     }
 
+    public void UnlockShowtime()
+    {
+        if (!IsLocked) return;
+
+        IsLocked = false;
+    }
+
     public void EnsureCanBookOrCancel()
     {
         if (IsLocked)

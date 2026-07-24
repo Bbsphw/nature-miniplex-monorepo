@@ -50,5 +50,11 @@ jobs:
       - name: Install Dependencies
         run: cd frontend && pnpm install --frozen-lockfile
 
+      - name: Type Check (TypeScript)
+        run: cd frontend && pnpm exec tsc --noEmit
+
+      - name: Lint Frontend (ESLint)
+        run: cd frontend && pnpm run lint
+
       - name: Build Next.js
         run: cd frontend && pnpm run build

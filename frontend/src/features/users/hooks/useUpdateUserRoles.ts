@@ -18,8 +18,9 @@ export function useUpdateUserRoles() {
       void queryClient.invalidateQueries({ queryKey: ['action-logs'] });
       toast.success(`อัปเดตบทบาทของพนักงาน (User ID ${variables.userId}) เรียบร้อยแล้ว`);
     },
-    onError: (err: any) => {
-      const msg = err.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปเดตบทบาทของผู้ใช้';
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string; detail?: string } } };
+      const msg = axiosErr.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปเดตบทบาทของผู้ใช้';
       toast.error(msg);
     },
   });
@@ -41,8 +42,9 @@ export function useUpdateUserProfile() {
       void queryClient.invalidateQueries({ queryKey: ['action-logs'] });
       toast.success(`อัปเดตข้อมูลพนักงาน (User ID ${variables.userId}) เรียบร้อยแล้ว`);
     },
-    onError: (err: any) => {
-      const msg = err.response?.data?.detail || err.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลพนักงาน';
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string; detail?: string } } };
+      const msg = axiosErr.response?.data?.detail || axiosErr.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลพนักงาน';
       toast.error(msg);
     },
   });
@@ -64,8 +66,9 @@ export function useToggleUserStatus() {
       void queryClient.invalidateQueries({ queryKey: ['action-logs'] });
       toast.success(`อัปเดตสถานะการใช้งานบัญชี (User ID ${variables.userId}) เป็น ${variables.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'} เรียบร้อยแล้ว`);
     },
-    onError: (err: any) => {
-      const msg = err.response?.data?.detail || err.response?.data?.message || 'เกิดข้อผิดพลาดในการปรับสถานะผู้ใช้';
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string; detail?: string } } };
+      const msg = axiosErr.response?.data?.detail || axiosErr.response?.data?.message || 'เกิดข้อผิดพลาดในการปรับสถานะผู้ใช้';
       toast.error(msg);
     },
   });

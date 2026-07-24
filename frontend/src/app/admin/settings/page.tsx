@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import apiClient from '@/lib/axios';
 import { toast } from '@/store/useToastStore';
@@ -25,10 +25,10 @@ export default function AccountSettingsPage() {
     username: username || 'User',
     email: 'user@natureminiplex.com',
     phoneNumber: '0812345678',
-    role: role || 'CUSTOMER',
+    role: role || 'CINEMA_MANAGER',
     permissions: permissions || [],
   });
-  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -36,12 +36,7 @@ export default function AccountSettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
-  useEffect(() => {
-    fetchUserProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     setLoadingProfile(true);
     try {
       const res = await apiClient.get<UserProfile>('/api/users/profile').catch(() => null);
@@ -54,14 +49,46 @@ export default function AccountSettingsPage() {
         setProfile((prev) => ({
           ...prev,
           username: username || 'User',
-          role: role || 'CUSTOMER',
+          role: role || 'CINEMA_MANAGER',
           permissions: permissions || [],
         }));
       }
     } finally {
       setLoadingProfile(false);
     }
-  };
+  }, [username, role, permissions, setPermissions]);
+
+  useEffect(() => {
+    let ignore = false;
+    apiClient.get<UserProfile>('/api/users/profile')
+      .then((res) => {
+        if (ignore) return;
+        if (res?.data) {
+          setProfile(res.data);
+          if (res.data.permissions && res.data.permissions.length > 0) {
+            setPermissions(res.data.permissions);
+          }
+        }
+      })
+      .catch(() => {
+        if (ignore) return;
+        setProfile((prev) => ({
+          ...prev,
+          username: username || 'User',
+          role: role || 'CINEMA_MANAGER',
+          permissions: permissions || [],
+        }));
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoadingProfile(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [username, role, permissions, setPermissions]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,6 +182,7 @@ export default function AccountSettingsPage() {
             <button
               key={tab.id}
               type="button"
+              role="tab"
               aria-selected={active}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-prompt border-b-2 transition-all whitespace-nowrap ${

@@ -426,7 +426,7 @@ export default function AdminMoviesPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    aria-selected={form.isActive === true}
+                    aria-pressed={form.isActive === true}
                     onClick={() => setForm((f) => ({ ...f, isActive: true }))}
                     className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all text-xs font-bold font-prompt ${
                       form.isActive === true
@@ -440,7 +440,7 @@ export default function AdminMoviesPage() {
 
                   <button
                     type="button"
-                    aria-selected={form.isActive === false}
+                    aria-pressed={form.isActive === false}
                     onClick={() => setForm((f) => ({ ...f, isActive: false }))}
                     className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all text-xs font-bold font-prompt ${
                       form.isActive === false

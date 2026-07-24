@@ -58,6 +58,26 @@ public class LockShowtimeCommandHandlerTests : BaseTest
     }
     
     [Fact]
+    public async Task Handle_ShouldUnlockShowtime_WhenShowtimeIsLockedAndIsLockedIsFalse()
+    {
+        // Arrange
+        var existingShowtime = new Showtime { Id = 1, IsActive = true };
+        existingShowtime.LockShowtime();
+        MockShowtimeRepository.Setup(x => x.GetByIdAsync(1, It.IsAny<CancellationToken>()))
+                              .ReturnsAsync(existingShowtime);
+
+        var command = new LockShowtimeCommand(1, IsLocked: false);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Should().BeTrue();
+        existingShowtime.IsLocked.Should().BeFalse();
+        MockUnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_ShouldThrowException_WhenShowtimeDoesNotExist()
     {
         // Arrange

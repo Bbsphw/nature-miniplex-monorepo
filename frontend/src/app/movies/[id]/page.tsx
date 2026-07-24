@@ -43,6 +43,7 @@ export default function MovieDetailPage() {
       <div className="relative w-full h-[50vh] sm:h-[60vh] lg:h-[70vh] flex items-end">
         {/* Backdrop Image */}
         <div className="absolute inset-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={backdropImage}
             alt="Backdrop"
@@ -69,6 +70,7 @@ export default function MovieDetailPage() {
             {isLoading ? (
               <Skeleton className="w-full h-full bg-gray-800" />
             ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={backdropImage}
                 alt="Poster"

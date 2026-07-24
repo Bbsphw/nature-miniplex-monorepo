@@ -6,17 +6,10 @@ import Link from 'next/link';
 import { useAuthStore } from '@/store/useAuthStore';
 import {
   Film,
-  Clock,
-  Ticket,
-  BarChart3,
   LogOut,
   Menu,
   X,
   ChevronRight,
-  Settings,
-  Users,
-  ShieldCheck,
-  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';

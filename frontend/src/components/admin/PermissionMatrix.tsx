@@ -115,12 +115,13 @@ export function PermissionMatrix() {
     });
   }, [roles, permissionDefs]);
 
-  useEffect(() => {
-    if (!rolesAndPermsKey || roles.length === 0) return;
+  const [syncedKey, setSyncedKey] = useState('');
+  if (rolesAndPermsKey && rolesAndPermsKey !== syncedKey && roles.length > 0) {
+    setSyncedKey(rolesAndPermsKey);
     const initial = buildInitialMatrix(roles, permissionDefs);
     setBaseline(initial);
     setMatrixState(initial);
-  }, [rolesAndPermsKey]); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }
 
   const filteredPermissions = useMemo(
     () => filterPermissions(permissionDefs, searchQuery),

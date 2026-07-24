@@ -763,7 +763,7 @@ export default function AdminShowtimesPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    aria-selected={Boolean(form.isActive)}
+                    aria-pressed={Boolean(form.isActive)}
                     onClick={() => setForm((f) => ({ ...f, isActive: true }))}
                     className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all text-xs font-bold font-prompt ${
                       form.isActive
@@ -777,7 +777,7 @@ export default function AdminShowtimesPage() {
 
                   <button
                     type="button"
-                    aria-selected={!form.isActive}
+                    aria-pressed={!form.isActive}
                     onClick={() => setForm((f) => ({ ...f, isActive: false }))}
                     className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all text-xs font-bold font-prompt ${
                       !form.isActive

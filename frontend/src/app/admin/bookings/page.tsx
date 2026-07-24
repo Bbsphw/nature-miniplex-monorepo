@@ -10,10 +10,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { toast } from '@/store/useToastStore';
-import { confirmModal } from '@/store/useConfirmStore';
 import axios from 'axios';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
-import { Search, Loader2, BookOpen, XCircle, Trash2, Ticket, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, Loader2, BookOpen, XCircle, Trash2, Ticket, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 import {

@@ -239,46 +239,5 @@ public static class DbInitializer
             context.Seats.AddRange(bangsaenSeats);
             await context.SaveChangesAsync();
         }
-
-        // 6. Seed Initial Audit Action Logs if empty
-        if (!await context.ActionLogs.AnyAsync())
-        {
-            var adminUserRef = await context.Users.FirstOrDefaultAsync(u => u.Username == "admin");
-            int adminId = adminUserRef?.Id ?? 1;
-
-            context.ActionLogs.AddRange(
-                new ActionLog
-                {
-                    LogLevel = "INFO",
-                    UserId = adminId,
-                    ActionName = "SYSTEM_INITIALIZE",
-                    HttpMethod = "SYSTEM",
-                    TargetType = "TABLE: system",
-                    TargetId = "1",
-                    Timestamp = DateTime.UtcNow.AddMinutes(-30)
-                },
-                new ActionLog
-                {
-                    LogLevel = "INFO",
-                    UserId = adminId,
-                    ActionName = "SEED_RBAC_PERMISSIONS",
-                    HttpMethod = "SYSTEM",
-                    TargetType = "TABLE: permissions",
-                    TargetId = "1",
-                    Timestamp = DateTime.UtcNow.AddMinutes(-20)
-                },
-                new ActionLog
-                {
-                    LogLevel = "INFO",
-                    UserId = adminId,
-                    ActionName = "CREATE_USER",
-                    HttpMethod = "SYSTEM",
-                    TargetType = "TABLE: users",
-                    TargetId = adminId.ToString(),
-                    Timestamp = DateTime.UtcNow.AddMinutes(-10)
-                }
-            );
-            await context.SaveChangesAsync();
-        }
     }
 }

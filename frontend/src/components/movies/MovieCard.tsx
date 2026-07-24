@@ -24,6 +24,7 @@ export function MovieCard({ movie }: MovieCardProps) {
       <div className="relative group overflow-hidden rounded-2xl bg-[#0a0a0f] border border-white/5 transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(227, 24, 55,0.3)] cursor-pointer h-[420px] w-full flex flex-col justify-end">
         {/* Background Image / Placeholder */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black z-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={placeholderImage}
             alt={movie.title}

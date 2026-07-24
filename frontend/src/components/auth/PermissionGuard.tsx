@@ -1,7 +1,15 @@
 'use client';
 
-import React, { ReactElement, useEffect, useState } from 'react';
+import React, { ReactElement, useSyncExternalStore } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
+
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+function useIsMounted() {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
 
 export interface PermissionGuardProps {
   permission?: string;
@@ -34,11 +42,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   children,
 }) => {
   const { hasPermission, can, isHydrated } = usePermissions();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useIsMounted();
 
   // During SSR or initial client mount frame before Zustand rehydrates, avoid layout break
   if (!mounted || !isHydrated) {
@@ -107,11 +111,7 @@ export function withPermission<P extends object>(
 ) {
   return function ProtectedComponent(props: P) {
     const { hasPermission, isHydrated } = usePermissions();
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-      setMounted(true);
-    }, []);
+    const mounted = useIsMounted();
 
     if (!mounted || !isHydrated) {
       return (

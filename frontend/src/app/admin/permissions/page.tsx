@@ -2,7 +2,7 @@
 
 import { usePermissions } from '@/hooks/usePermissions';
 import { PermissionMatrix } from '@/components/admin/PermissionMatrix';
-import { ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 
 export default function AdminPermissionsPage() {
   const { hasPermission } = usePermissions();

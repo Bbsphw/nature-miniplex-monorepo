@@ -134,6 +134,21 @@
   ]
   ```
 
+### 4.4 Lock / Unlock Showtime (ล็อกหรือปลดล็อกรอบฉาย)
+- **Endpoint:** `PATCH /api/showtimes/{id}/lock`
+- **Security:** `Bearer Token` (Permission: `showtimes:lock` / `showtime:create`)
+- **Request Contract:**
+  ```json
+  {
+    "isLocked": false
+  }
+  ```
+- **Description:** ล็อกรอบฉายเพื่อปิดรับจองชั่วคราว หรือปลดล็อกรอบฉายเพื่อเปิดรับจองและแก้ไขข้อมูลได้ตามปกติ (หากไม่ส่ง Body จะ Default เป็น `true`)
+- **Response Contract (200 OK):**
+  ```json
+  true
+  ```
+
 ---
 
 ## 🎟️ 5. Bookings Service (`/api/bookings`)

@@ -5,7 +5,6 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { useUsers } from '@/features/users/hooks/useUsers';
 import { useCreateUser } from '@/features/users/hooks/useCreateUser';
-import Link from 'next/link';
 import { useRoles } from '@/features/users/hooks/useRoles';
 import { useUpdateUserRoles, useUpdateUserProfile } from '@/features/users/hooks/useUpdateUserRoles';
 import { useActionLogs } from '@/features/users/hooks/useActionLogs';
@@ -13,7 +12,6 @@ import { usePermissions } from '@/hooks/usePermissions';
 import {
   Users,
   UserPlus,
-  ShieldCheck,
   ShieldAlert,
   Building2,
   FileText,
@@ -22,17 +20,14 @@ import {
   Search,
   User,
   Settings,
-  ExternalLink,
   KeyRound,
   Power,
   Check,
   CheckCircle2,
-  Lock,
   Eye,
   Code2,
   Shield,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,7 +51,6 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [logSearchQuery, setLogSearchQuery] = useState('');
   const [selectedLogDetail, setSelectedLogDetail] = useState<ActionLog | null>(null);
-
   const [usersPage, setUsersPage] = useState(1);
   const [logsPage, setLogsPage] = useState(1);
   const pageSize = 10;
@@ -98,7 +92,9 @@ export default function AdminUsersPage() {
     setEditIsActive(user.isActive);
 
     const rawRoles = user.roles || (user.role ? [user.role] : []);
-    const userRoleCodes: string[] = rawRoles.map((r: any) => typeof r === 'string' ? r : r.code || '');
+    const userRoleCodes: string[] = rawRoles.map((r: unknown) =>
+      typeof r === 'string' ? r : (r as { code?: string })?.code || ''
+    );
     const currentIds = roles
       .filter((r) => userRoleCodes.some((code) => code.toUpperCase() === r.code.toUpperCase()))
       .map((r) => r.id);
@@ -122,7 +118,9 @@ export default function AdminUsersPage() {
 
       // Calculate initial role IDs to check if roles were actually modified
       const rawRoles = manageUserModal.roles || (manageUserModal.role ? [manageUserModal.role] : []);
-      const userRoleCodes: string[] = rawRoles.map((r: any) => typeof r === 'string' ? r : r.code || '');
+      const userRoleCodes: string[] = rawRoles.map((r: unknown) =>
+        typeof r === 'string' ? r : (r as { code?: string })?.code || ''
+      );
       const initialRoleIds = roles
         .filter((r) => userRoleCodes.some((code) => code.toUpperCase() === r.code.toUpperCase()))
         .map((r) => r.id)
@@ -170,10 +168,6 @@ export default function AdminUsersPage() {
     );
   };
 
-
-  const filteredUsers = users.filter((u) =>
-    u.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <PermissionGuard
@@ -224,7 +218,7 @@ export default function AdminUsersPage() {
         <div className="flex border-b border-[#2A2A3E] gap-2">
           <button
             type="button"
-            aria-selected={activeTab === 'users'}
+            aria-pressed={activeTab === 'users'}
             onClick={() => setActiveTab('users')}
             className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-prompt border-b-2 transition-all ${
               activeTab === 'users'
@@ -237,7 +231,7 @@ export default function AdminUsersPage() {
           </button>
           <button
             type="button"
-            aria-selected={activeTab === 'logs'}
+            aria-pressed={activeTab === 'logs'}
             onClick={() => setActiveTab('logs')}
             className={`flex items-center gap-2 px-5 py-3 text-xs font-bold font-prompt border-b-2 transition-all ${
               activeTab === 'logs'
@@ -269,7 +263,10 @@ export default function AdminUsersPage() {
                 <Input
                   placeholder="ค้นหาชื่อพนักงาน..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setUsersPage(1);
+                  }}
                   className="pl-9 bg-[#0A0A0F] border-[#2A2A3E] text-white h-9 text-xs focus-visible:ring-brand-red font-prompt"
                 />
               </div>
@@ -287,110 +284,129 @@ export default function AdminUsersPage() {
                     <TableHead className="text-gray-400 text-xs font-semibold text-right font-prompt">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
-                  <TableBody>
-                    {(() => {
-                      const totalUsersPages = Math.ceil(filteredUsers.length / pageSize) || 1;
-                      const paginatedUsers = filteredUsers.slice((usersPage - 1) * pageSize, usersPage * pageSize);
+                <TableBody>
+                  {(() => {
+                    const filteredUsers = users.filter((u) => {
+                      const q = searchQuery.toLowerCase().trim();
+                      if (!q) return true;
+                      return (
+                        u.username.toLowerCase().includes(q) ||
+                        (u.email || '').toLowerCase().includes(q) ||
+                        u.id.toString().includes(q)
+                      );
+                    });
+                    const paginatedUsers = filteredUsers.slice((usersPage - 1) * pageSize, usersPage * pageSize);
 
-                      if (paginatedUsers.length === 0) {
-                        return (
-                          <TableRow>
-                            <TableCell colSpan={6} className="text-center text-gray-500 py-12 italic text-xs font-prompt">
-                              ไม่พบรายการพนักงานในระบบตามคำค้นหา
-                            </TableCell>
-                          </TableRow>
-                        );
-                      }
+                    if (paginatedUsers.length === 0) {
+                      return (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-gray-500 py-12 italic text-xs font-prompt">
+                            ไม่พบข้อมูลผู้ใช้ในระบบตามคำค้นหา
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
 
-                      return paginatedUsers.map((user) => {
-                        const isSelf = user.username === currentUsername;
-                        return (
-                          <TableRow key={user.id} className="border-gray-800/80 hover:bg-gray-800/40">
-                            <TableCell className="font-mono text-xs text-brand-red font-bold">#{user.id}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-white text-sm">{user.username}</span>
-                                {isSelf && (
-                                  <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400 px-1.5 py-0">
-                                    You (Active)
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {(() => {
-                                  const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role || 'CINEMA_MANAGER'];
-                                  return rawRoles.map((r: any, idx: number) => {
-                                    const rCode = typeof r === 'string' ? r : r.code || 'CINEMA_MANAGER';
-                                    return (
-                                      <Badge
-                                        key={`${user.id}-role-${idx}`}
-                                        className={`text-xs px-2.5 py-0.5 ${
-                                          rCode === 'SYSTEM_ADMIN'
-                                            ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                                            : rCode === 'CINEMA_MANAGER'
-                                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                                            : 'bg-gray-800 text-gray-300 border-gray-700'
-                                        }`}
-                                      >
-                                        {rCode}
-                                      </Badge>
-                                    );
-                                  });
-                                })()}
-                              </div>
-                            </TableCell>
-
-                            <TableCell className="text-xs text-gray-300">
-                              {user.cinemaId ? (
-                                <span className="flex items-center gap-1.5 text-blue-300">
-                                  <Building2 className="w-3.5 h-3.5 text-blue-400" />
-                                  {user.cinemaId === 1 ? 'ศรีราชา (#1)' : user.cinemaId === 2 ? 'บางแสน (#2)' : `Cinema #${user.cinemaId}`}
-                                </span>
-                              ) : (
-                                <span className="text-gray-500 italic">All Cinemas (Global System Admin)</span>
+                    return paginatedUsers.map((user) => {
+                      const isSelf = user.username === currentUsername;
+                      return (
+                        <TableRow key={user.id} className="border-gray-800/80 hover:bg-gray-800/40">
+                          <TableCell className="font-mono text-xs text-brand-red font-bold">#{user.id}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-white text-sm">{user.username}</span>
+                              {isSelf && (
+                                <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400 px-1.5 py-0">
+                                  You (Active)
+                                </Badge>
                               )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  user.isActive
-                                    ? 'border-emerald-500/40 text-emerald-400 bg-emerald-950/20 px-2.5 py-0.5 text-xs'
-                                    : 'border-red-500/40 text-red-400 bg-red-950/20 px-2.5 py-0.5 text-xs font-semibold'
-                                }
-                              >
-                                {user.isActive ? 'Active (เปิดใช้งาน)' : 'Disabled (ปิดใช้งาน)'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenManageUserModal(user)}
-                                className="border-gray-700 bg-gray-800/80 hover:bg-gray-700 text-gray-200 text-xs px-3 h-8 flex items-center gap-1.5 ml-auto"
-                              >
-                                <Settings className="w-3.5 h-3.5 text-brand-red" />
-                                <span>จัดการข้อมูล & สิทธิ์</span>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      });
-                    })()}
-                  </TableBody>
-                </Table>
-              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {(() => {
+                                const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role || 'CINEMA_MANAGER'];
+                                return rawRoles.map((r: string | { code?: string }, idx: number) => {
+                                  const rCode = typeof r === 'string' ? r : r.code || 'CINEMA_MANAGER';
+                                  return (
+                                    <Badge
+                                      key={`${user.id}-role-${idx}`}
+                                      className={`text-xs px-2.5 py-0.5 ${
+                                        rCode === 'SYSTEM_ADMIN'
+                                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                          : rCode === 'CINEMA_MANAGER'
+                                          ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                                          : 'bg-gray-800 text-gray-300 border-gray-700'
+                                      }`}
+                                    >
+                                      {rCode}
+                                    </Badge>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          </TableCell>
 
-            {/* Pagination Controls for Tab 1 (Users) */}
+                          <TableCell className="text-xs text-gray-300">
+                            {user.cinemaId ? (
+                              <span className="flex items-center gap-1.5 text-blue-300">
+                                <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                                {user.cinemaId === 1 ? 'Sriracha' : user.cinemaId === 2 ? 'Bangsaen' : `Cinema #${user.cinemaId}`}
+                              </span>
+                            ) : (
+                              <span className="text-gray-500 italic">All Cinemas (Global System Admin)</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                user.isActive
+                                  ? 'border-emerald-500/40 text-emerald-400 bg-emerald-950/20 px-2.5 py-0.5 text-xs'
+                                  : 'border-red-500/40 text-red-400 bg-red-950/20 px-2.5 py-0.5 text-xs font-semibold'
+                              }
+                            >
+                              {user.isActive ? 'Active (เปิดใช้งาน)' : 'Disabled (ปิดใช้งาน)'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenManageUserModal(user)}
+                              className="border-gray-700 bg-gray-800/80 hover:bg-gray-700 text-gray-200 text-xs px-3 h-8 flex items-center gap-1.5 ml-auto"
+                            >
+                              <Settings className="w-3.5 h-3.5 text-brand-red" />
+                              <span>จัดการข้อมูล & สิทธิ์</span>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Users Pagination */}
             {(() => {
+              const filteredUsers = users.filter((u) => {
+                const q = searchQuery.toLowerCase().trim();
+                if (!q) return true;
+                return (
+                  u.username.toLowerCase().includes(q) ||
+                  (u.email || '').toLowerCase().includes(q) ||
+                  u.id.toString().includes(q)
+                );
+              });
               const totalUsersPages = Math.ceil(filteredUsers.length / pageSize) || 1;
+
               if (totalUsersPages <= 1) return null;
+
               return (
-                <div className="pt-3 border-t border-[#2A2A3E] flex flex-col sm:flex-row items-center justify-between gap-4 font-prompt">
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 font-prompt">
                   <span className="text-xs text-gray-400">
-                    แสดงรายการพนักงาน {(usersPage - 1) * pageSize + 1} - {Math.min(usersPage * pageSize, filteredUsers.length)} จากทั้งหมด {filteredUsers.length} คน
+                    แสดงพนักงาน {(usersPage - 1) * pageSize + 1} - {Math.min(usersPage * pageSize, filteredUsers.length)} จากทั้งหมด {filteredUsers.length} คน
                   </span>
                   <Pagination className="w-auto mx-0">
                     <PaginationContent>
@@ -416,7 +432,7 @@ export default function AdminUsersPage() {
                             }}
                             className={
                               usersPage === page
-                                ? 'bg-brand-red text-white border-brand-red shadow-[0_0_10px_rgba(227,24,55,0.3)] cursor-default font-bold'
+                                ? 'bg-brand-red text-white border-brand-red shadow-[0_0_10px_rgba(227,24,55,0.3)] cursor-default'
                                 : 'border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer'
                             }
                           >
@@ -462,7 +478,10 @@ export default function AdminUsersPage() {
                 <Input
                   placeholder="ค้นหา Log ID, Action, Actor..."
                   value={logSearchQuery}
-                  onChange={(e) => setLogSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setLogSearchQuery(e.target.value);
+                    setLogsPage(1);
+                  }}
                   className="pl-9 bg-[#0A0A0F] border-[#2A2A3E] text-white h-9 text-xs focus-visible:ring-brand-red font-prompt"
                 />
               </div>
@@ -490,8 +509,8 @@ export default function AdminUsersPage() {
                       const role = (log.actorRole || '').toLowerCase();
                       const user = (log.user?.username || '').toLowerCase();
                       const ip = (log.ipAddress || '').toLowerCase();
-                      const target = (log.targetType || '').toLowerCase();
-                      const targetId = (log.targetId || '').toLowerCase();
+                      const target = (log.targetType || log.entityName || '').toLowerCase();
+                      const targetId = (log.targetId || (log.entityId ? log.entityId.toString() : '')).toLowerCase();
                       return (
                         log.id.toString().includes(q) ||
                         action.includes(q) ||
@@ -504,7 +523,9 @@ export default function AdminUsersPage() {
                       );
                     });
 
-                    if (filteredLogs.length === 0) {
+                    const paginatedLogs = filteredLogs.slice((logsPage - 1) * pageSize, logsPage * pageSize);
+
+                    if (paginatedLogs.length === 0) {
                       return (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center text-gray-500 py-12 italic text-xs font-prompt">
@@ -514,7 +535,7 @@ export default function AdminUsersPage() {
                       );
                     }
 
-                    return filteredLogs.map((log) => {
+                    return paginatedLogs.map((log) => {
                       const level = (log.logLevel || 'INFO').toUpperCase();
                       const statusCode = log.statusCode || 200;
                       const actionName = log.actionName || log.actionType || 'N/A';
@@ -616,6 +637,86 @@ export default function AdminUsersPage() {
                 </TableBody>
               </Table>
             </div>
+
+            {/* Action Logs Pagination */}
+            {(() => {
+              const filteredLogs = actionLogs.filter((log) => {
+                const q = logSearchQuery.toLowerCase();
+                const action = (log.actionName || log.actionType || '').toLowerCase();
+                const email = (log.actorEmail || '').toLowerCase();
+                const role = (log.actorRole || '').toLowerCase();
+                const user = (log.user?.username || '').toLowerCase();
+                const ip = (log.ipAddress || '').toLowerCase();
+                const target = (log.targetType || log.entityName || '').toLowerCase();
+                const targetId = (log.targetId || (log.entityId ? log.entityId.toString() : '')).toLowerCase();
+                return (
+                  log.id.toString().includes(q) ||
+                  action.includes(q) ||
+                  email.includes(q) ||
+                  role.includes(q) ||
+                  user.includes(q) ||
+                  ip.includes(q) ||
+                  target.includes(q) ||
+                  targetId.includes(q)
+                );
+              });
+              const totalLogsPages = Math.ceil(filteredLogs.length / pageSize) || 1;
+
+              if (totalLogsPages <= 1) return null;
+
+              return (
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 font-prompt">
+                  <span className="text-xs text-gray-400">
+                    แสดง Log {(logsPage - 1) * pageSize + 1} - {Math.min(logsPage * pageSize, filteredLogs.length)} จากทั้งหมด {filteredLogs.length} รายการ
+                  </span>
+                  <Pagination className="w-auto mx-0">
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setLogsPage((p) => Math.max(1, p - 1));
+                          }}
+                          disabled={logsPage === 1}
+                          className="border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer"
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalLogsPages }, (_, i) => i + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            type="button"
+                            isActive={logsPage === page}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setLogsPage(page);
+                            }}
+                            className={
+                              logsPage === page
+                                ? 'bg-brand-red text-white border-brand-red shadow-[0_0_10px_rgba(227,24,55,0.3)] cursor-default'
+                                : 'border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer'
+                            }
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setLogsPage((p) => Math.min(totalLogsPages, p + 1));
+                          }}
+                          disabled={logsPage === totalLogsPages}
+                          className="border-[#2A2A3E] text-gray-300 hover:bg-gray-800 cursor-pointer"
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -677,7 +778,7 @@ export default function AdminUsersPage() {
                       <button
                         key={r.code}
                         type="button"
-                        aria-selected={isSelected}
+                        aria-pressed={isSelected}
                         onClick={() => setNewRole(r.code as UserRole)}
                         className={`w-full text-left p-3 rounded-xl border transition-all ${
                           isSelected
@@ -711,7 +812,7 @@ export default function AdminUsersPage() {
                         <button
                           key={c.id}
                           type="button"
-                          aria-selected={isSelected}
+                          aria-pressed={isSelected}
                           onClick={() => setNewCinemaId(c.id)}
                           className={`p-2.5 rounded-xl border text-xs font-bold font-prompt transition-all text-center ${
                             isSelected
@@ -809,7 +910,7 @@ export default function AdminUsersPage() {
                         <button
                           key={String(c.val)}
                           type="button"
-                          aria-selected={isSelected}
+                          aria-pressed={isSelected}
                           onClick={() => setEditCinemaId(c.val)}
                           className={`p-2.5 rounded-xl border text-xs font-bold font-prompt transition-all text-center ${
                             isSelected
@@ -907,7 +1008,7 @@ export default function AdminUsersPage() {
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <button
                     type="button"
-                    aria-selected={editIsActive === true}
+                    aria-pressed={editIsActive === true}
                     onClick={() => setEditIsActive(true)}
                     className={`flex items-center justify-center gap-2.5 p-3 rounded-xl border transition-all text-xs font-bold font-prompt ${
                       editIsActive === true
@@ -921,7 +1022,7 @@ export default function AdminUsersPage() {
 
                   <button
                     type="button"
-                    aria-selected={editIsActive === false}
+                    aria-pressed={editIsActive === false}
                     onClick={() => setEditIsActive(false)}
                     className={`flex items-center justify-center gap-2.5 p-3 rounded-xl border transition-all text-xs font-bold font-prompt ${
                       editIsActive === false

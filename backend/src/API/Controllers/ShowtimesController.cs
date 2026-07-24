@@ -65,9 +65,12 @@ public class ShowtimesController : ControllerBase
 
     [HttpPatch("{id}/lock")]
     [HasPermission("showtime:create")]
-    public async Task<IActionResult> LockShowtime(int id)
+    public async Task<IActionResult> LockShowtime(int id, [FromBody] LockShowtimeRequest? request)
     {
-        var result = await _mediator.Send(new LockShowtimeCommand(id));
+        var isLocked = request?.IsLocked ?? true;
+        var result = await _mediator.Send(new LockShowtimeCommand(id, isLocked));
         return Ok(result);
     }
 }
+
+public record LockShowtimeRequest(bool IsLocked = true);

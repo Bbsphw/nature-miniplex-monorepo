@@ -10,8 +10,9 @@ export function useUsers(options?: { enabled?: boolean }) {
       return data;
     },
     enabled: options?.enabled ?? true,
-    retry: (failureCount, error: any) => {
-      if (error?.response?.status === 403 || error?.response?.status === 401) return false;
+    retry: (failureCount, error: unknown) => {
+      const err = error as { response?: { status?: number } };
+      if (err?.response?.status === 403 || err?.response?.status === 401) return false;
       return failureCount < 2;
     },
   });
